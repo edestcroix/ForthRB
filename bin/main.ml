@@ -20,12 +20,7 @@
 
 type 'a stack = 'a list
 
-type stack_result = 
-  | Ok of int stack
-  | Error of string
 
-let stack_error = Error "Stack Underflow"
-let cmd_error = Error "Invalid Command"
 
 type forth_command = 
   | Push of int
@@ -37,9 +32,24 @@ type forth_command =
   | And | Or | Xor
   (* TODO: Handle words  *)
   | StrLQ | StrRQ
+  | WordStart | WordEnd
   | Quit
+  | Keyword of string
   | Error of string
 ;;
+
+type forth_word = 
+  | Word of string * forth_command list
+
+type env = forth_word list
+
+type stack_result = 
+  | Ok of int stack
+  | Error of string
+
+let stack_error = Error "Stack Underflow"
+let cmd_error = Error "Invalid Command"
+
 
 let parse (s : string) : forth_command =
   match s with
@@ -66,7 +76,10 @@ let parse (s : string) : forth_command =
   | "xor" | "XOR" -> Xor
   | ".\"" -> StrLQ
   | "\"" -> StrRQ
-  | _ -> try Push (int_of_string s) with _ -> Error "invalid command"
+  | ":" -> WordStart
+  | ";" -> WordEnd
+  | "if" | "IF" -> If []
+  | _ -> try Push (int_of_string s) with _ -> Keyword s
 
 ;;
 
@@ -75,7 +88,6 @@ let op1 f s =
   | _ :: _ -> Ok (f s)
   | _ -> stack_error
 ;;
-
 
 let op2 f s =
   match s with
@@ -93,7 +105,13 @@ let print_stack (s : int stack) : string =
   in print_stack' s
 ;;
 
-let eval s c : stack_result =
+
+let rec eval s c env : stack_result =
+  let rec env_lookup (env : env) (s : string) : forth_command list =
+    match env with
+    | [] -> []
+    | Word (name, cmd) :: env' -> if name = s then cmd else env_lookup env' s
+  in
   match c with
   | Push i   -> print_int i; print_char(' ');Ok (i :: s)
   | Add      -> op2 (+) s
@@ -128,42 +146,33 @@ let eval s c : stack_result =
   | Or  -> op2 (lor) s
   | Xor -> op2 (lxor) s
   | Error e -> Error e
+  | Keyword key -> (match env_lookup env key with
+    | [] -> Error "Word not found"
+    | x :: _ -> eval s x env)
   | _ -> cmd_error
 ;;
 
-let rec eval_input input stack =
-  match input with
-  | [] -> Ok stack
-  | x :: xs -> 
-    let c = parse x in
-    match eval stack c with
-    | Ok s -> eval_input xs s
-    | Error e -> Error e
+
+(* TODO: read_word *)
+
+let read_word _ = failwith "not implemented"
+
+
+let rec read_in (s : int stack) (env : env) : unit =
+  print_string ">> ";
+  let line = read_line () in
+  if line = "quit" then exit 0;
+  let words = String.split_on_char ' ' line in
+  let rec read_in' (s : int stack) (env : env) (words : string list) : unit =
+    match words with
+    | [] -> print_string "ok\n"; read_in s env
+    | x :: xs -> (match parse x with
+      | Error e -> print_string e; print_newline(); read_in s env
+      | WordStart -> read_in s (read_word env)
+      | _ -> (match eval s (parse x) env with
+        | Ok s' -> read_in' s' env xs
+        | Error e -> print_string e; print_newline(); read_in s env))
+  in read_in' s env words
 ;;
 
-let parse_input s =
-  let len = String.length s in
-  let rec parse_input' (s : string) (i : int) (acc : string) : string list =
-    if i = len then
-      acc :: []
-    else
-      let c = s.[i] in
-      if c = ' ' then
-        acc :: parse_input' s (i + 1) ""
-      else
-        parse_input' s (i + 1) (acc ^ (String.make 1 c))
-  in
-  parse_input' s 0 ""
-;;
-
-let stack = [] in
-let rec loop (stack : int stack) : unit =
-  print_string "input: ";
-  let s = String.trim (read_line ()) in
-  if s = "quit" then () else
-  match eval_input (parse_input s) stack with
-  | Ok s -> print_string "ok"; print_newline (); loop s
-  | Error e -> print_string "error: "; print_string e; print_newline (); loop stack
-in loop stack
-
-
+read_in [] [];;
