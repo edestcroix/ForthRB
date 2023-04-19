@@ -1,10 +1,19 @@
 # TODO: Add comments
-# - Word interpreter that can detect ." and " .
-# - Check that AND OR, and XOR do what their supposed to.
-# - When words are implemented, need to figure out what to do
-#   when evaluating them
-# - IF parser
-# - Loop parser
+# - Only print newlines in output when neccessary.
+# - Check that AND OR, and XOR do what they're supposed to.
+# - IF parser (Do as a class?)
+# - Loop parser (Do as a class?)
+
+
+# NOTE: Idea for IF and LOOP
+# When the IF/LOOP keywores are found, enter their 
+# parsers like for the words and strings, but store them into a class. 
+# Once the IF/LOOP is parsed, it is returned, and then 
+# call the newly created classes eval() method and pass it the stack as an argument.
+# Then the classes can figure out what to evaluate. This shouldn't be too hard for regular parsing,
+# but when evaluating a user word it might get tricky. Either save the raw IF/LOOP in the word,
+# or build the classes during parsing and store them in the word, and have special cases for evaluating them.
+# If done with the latter, could store strings as classes too.
 
 # Put this in a mixin for organization purposes.
 module Maths
@@ -56,13 +65,13 @@ class ForthStack < Array
     (push op1 == op2 ? -1 : 0) unless check_nil([op1, op2])
   end
 
-  def less_than
+  def lesser
     op1 = pop
     op2 = pop
     (push op2 < op1 ? -1 : 0) unless check_nil([op1, op2])
   end
 
-  def greater_than
+  def greater
     op1 = pop
     op2 = pop
     (push op2 < op1 ? -1 : 0) unless check_nil([op1, op2])
@@ -125,13 +134,13 @@ class ForthStack < Array
 
   private
 
+  # if any of the operands are nil, return true,
+  # and put the ones that aren't back on the stack
   def check_nil(ops)
-    # if any of the operands are nil, return true
     ops.each do |op|
       next unless op.nil?
 
       warn 'Stack underflow'
-      # put the operands back on the stack, in the correct order
       ops.reverse.each { |o| o.nil? ? nil : push(o) }
       return true
     end
@@ -141,14 +150,15 @@ end
 
 # interpreturn of forth
 class ForthInterpreter
-  def initialize(stack)
+  def initialize(stack = ForthStack.new)
     @stack = stack
     @user_words = {}
   end
 
   def interpret
     $stdin.each_line do |line|
-      line == "quit\n" ? exit(0) : interpret_line(mod_line(line))
+      line = mod_line(line)
+      %W[quit\n exit\n].include?(line) ? exit(0) : interpret_line(line.split)
       puts 'ok'
     end
   end
@@ -156,41 +166,42 @@ class ForthInterpreter
   private
 
   def interpret_line(line)
-    line.split.each_with_index do |word, i|
+    line.each_with_index do |word, i|
       word = word.downcase
-      eval_user_word(word) if @user_words.key?(word.to_sym)
-      case eval_word(word)
-      when 1
-        interpret_word(line.split[i + 1..])
-      when 2
-        interpret_string(line.split[i + 1..])
+      if @user_words.key?(word.to_sym)
+        eval_user_word(@user_words[word.to_sym])
+      else
+        case eval_word(word)
+        when 1
+          interpret_line(eval_string(line[i + 1..]))
+          break
+        when 2
+          interpret_word(line[i + 1..])
+          break
+        end
       end
     end
   end
 
-  def eval_word(word)
-    return 1 if word == ':'
-    return 2 if work == '."'
-
-    if word =~ /\d+/
-      @stack.push(word.to_i)
-    elsif @stack.respond_to?(word)
-      @stack.send(word.to_sym)
-    else
-      warn "Unknown word: #{word}"
-    end
+  # substitute out all the special characters in the line for
+  # the words that correspond to the appropriate stack methods.
+  def mod_line(line)
+    line.gsub(%r{(?!.")[+/\-=*.<>]},
+              { '+' => 'add', '-' => 'sub', '*' => 'mul', '/' => 'div',
+                '=' => 'equal', '.' => 'dot', '<' => 'lesser', '>' => 'greater' })
   end
 
-  def mod_line(line)
-    # replace + with add, - with sub, * with mul, etc
-    line = line.gsub('+', 'add')
-    line = line.gsub('-', 'sub')
-    line = line.gsub('*', 'mul')
-    line = line.gsub('/', 'div')
-    line = line.gsub('=', 'equal')
-    line = line.gsub('.', 'dot')
-    line = line.gsub('<', 'less_than')
-    line.gsub('>', 'greater_than')
+  def eval_string(line)
+    # everything on the line should be printed as-is
+    # until a " is found. if one isn't, error.
+    # everything after the " should be evaluated
+    if line.include?('"')
+      print line[0..line.index('"') - 1].join(' ')
+      print ' '
+      line[line.index('"') + 1..]
+    else
+      warn 'No closing " found'
+    end
   end
 
   def interpret_word(line)
@@ -205,8 +216,7 @@ class ForthInterpreter
       warn "Word already defined: #{word}"
     else
       @user_words.store(name, [])
-      remainder = line[1..]
-      read_word(remainder, name)
+      read_word(line[1..], name)
     end
   end
 
@@ -224,27 +234,28 @@ class ForthInterpreter
     read_word($stdin.gets.split, name)
   end
 
-  def eval_user_word(word)
-    puts @user_words[word.to_sym].inspect
-    @user_words[word.to_sym].each do |w|
+  def eval_word(word)
+    return 1 if word == '."'
+    return 2 if word == ':'
+
+    if word =~ /\d+/
+      @stack.push(word.to_i)
+    elsif @stack.respond_to?(word)
+      @stack.send(word.to_sym)
+    else
+      warn "Unknown word: #{word}"
+    end
+  end
+
+  def eval_user_word(word_list)
+    word_list.each do |w|
+      if w == '."'
+        eval_user_word(eval_string(word_list[word_list.index(w) + 1..]))
+        break
+      end
       eval_word(w.downcase)
     end
   end
 end
 
-stack = ForthStack.new
-
-stack.push(5)
-stack.push(6)
-stack.push(7)
-stack.push(8)
-stack.push(9)
-stack.add
-stack.dot
-stack.emit
-
-stack.swap
-stack.dump
-
-forth = ForthInterpreter.new(stack)
-forth.interpret
+ForthInterpreter.new.interpret
