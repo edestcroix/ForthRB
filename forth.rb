@@ -47,25 +47,25 @@ class ForthStack < Array
   def mathop(opr)
     op1 = pop
     op2 = pop
-    push(op1.send(opr, op2)) unless check_nil([op1, op2])
+    push(op2.send(opr, op1)) unless check_nil([op1, op2])
   end
 
   def equal
     op1 = pop
     op2 = pop
-    push op1 == op2 ? -1 : 0
+    (push op1 == op2 ? -1 : 0) unless check_nil([op1, op2])
   end
 
   def less_than
     op1 = pop
     op2 = pop
-    (push op1 < op2 ? -1 : 0) unless check_nil([op1, op2])
+    (push op2 < op1 ? -1 : 0) unless check_nil([op1, op2])
   end
 
   def greater_than
     op1 = pop
     op2 = pop
-    (push op1 < op2 ? -1 : 0) unless check_nil([op1, op2])
+    (push op2 < op1 ? -1 : 0) unless check_nil([op1, op2])
   end
 
   def dup
@@ -108,7 +108,7 @@ class ForthStack < Array
     # print the stack in a human-readable format,
     # in reverse because the stack opeated on
     # from the end of the array
-    print reverse
+    print self
     puts ''
   end
 
