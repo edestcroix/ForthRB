@@ -1,5 +1,23 @@
 (* Forth Interpreter *)
 
+
+
+(*
+ TODO:
+   - Better formatted output
+   - Some operations are not implemented (CR, maybe others)
+   - ." and " are not implemented yet.
+   - Word definitions
+   - Control flows, variables, comments etc.
+
+
+   NOTE:
+     - Probably going to have to set up some form
+     of environment for variables, control flows etc.
+     Need closures and such.
+ *)
+
+
 type 'a stack = 'a list
 
 type stack_result = 
@@ -49,20 +67,21 @@ let parse (s : string) : forth_command =
   | ".\"" -> StrLQ
   | "\"" -> StrRQ
   | _ -> try Push (int_of_string s) with _ -> Error "invalid command"
-in
+
+;;
 
 let op1 f s =
   match s with
   | _ :: _ -> Ok (f s)
   | _ -> stack_error
+;;
 
-in
 
 let op2 f s =
   match s with
   | x :: y :: s' -> Ok (f x y :: s')
   | _ -> stack_error
-in
+;;
 
 let print_stack (s : int stack) : string =
   print_string "[" ;
@@ -72,9 +91,9 @@ let print_stack (s : int stack) : string =
     | x :: [] -> (string_of_int x) ^ "]"
     | x :: s' -> (string_of_int x) ^ " " ^ (print_stack' s')
   in print_stack' s
-in
+;;
 
-let eval (s : int stack) (c : forth_command) : stack_result =
+let eval s c : stack_result =
   match c with
   | Push i   -> print_int i; print_char(' ');Ok (i :: s)
   | Add      -> op2 (+) s
@@ -83,7 +102,7 @@ let eval (s : int stack) (c : forth_command) : stack_result =
   | Divide   -> op2 (/) s
   | Dup      -> op1 (fun s -> (List.hd s) :: s) s
   | Drop     -> op1 (List.tl) s
-  | Dump -> ( print_newline(); print_string (print_stack s); Ok s)
+  | Dump -> (print_string (print_stack s); print_newline();Ok s)
   | Swap     -> (match s with
       | [] | [_] -> stack_error
       | x :: y :: s' -> Ok(y :: x :: s'))
@@ -98,10 +117,10 @@ let eval (s : int stack) (c : forth_command) : stack_result =
     | _ -> stack_error)
   | Emit -> (match s with 
     [] -> stack_error
-    | x :: s' -> (print_int x); print_newline (); Ok(s'))
+    | x :: s' -> (print_int x); print_char(' '); Ok(s'))
 | Emit_Ascii -> (match s with 
     [] -> stack_error
-    | x :: s' -> (print_char (char_of_int x)); print_newline (); Ok(s'))
+    | x :: s' -> (print_char (char_of_int x)); Ok(s'))
   | Eq  -> op2 (fun x y -> if x = y then -1 else 0) s
   | Lt  -> op2 (fun x y -> if y < x then -1 else 0) s
   | Gt  -> op2 (fun x y -> if y > x then -1 else 0) s
@@ -109,21 +128,20 @@ let eval (s : int stack) (c : forth_command) : stack_result =
   | Or  -> op2 (lor) s
   | Xor -> op2 (lxor) s
   | Error e -> Error e
-  | _ -> Error "Invalid Command"
-in
+  | _ -> cmd_error
+;;
 
-let rec eval_input (input, stack : string stack * int stack) : stack_result =
+let rec eval_input input stack =
   match input with
   | [] -> Ok stack
   | x :: xs -> 
     let c = parse x in
     match eval stack c with
-    | Ok s -> eval_input (xs, s)
+    | Ok s -> eval_input xs s
     | Error e -> Error e
-in
+;;
 
-
-let rec parse_input (s : string) : string list =
+let parse_input s =
   let len = String.length s in
   let rec parse_input' (s : string) (i : int) (acc : string) : string list =
     if i = len then
@@ -136,14 +154,14 @@ let rec parse_input (s : string) : string list =
         parse_input' s (i + 1) (acc ^ (String.make 1 c))
   in
   parse_input' s 0 ""
-in
+;;
 
 let stack = [] in
 let rec loop (stack : int stack) : unit =
   print_string "input: ";
   let s = String.trim (read_line ()) in
   if s = "quit" then () else
-  match eval_input (parse_input s, stack) with
+  match eval_input (parse_input s) stack with
   | Ok s -> print_string "ok"; print_newline (); loop s
   | Error e -> print_string "error: "; print_string e; print_newline (); loop stack
 in loop stack
