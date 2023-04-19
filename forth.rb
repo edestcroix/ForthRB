@@ -84,28 +84,20 @@ class ForthStack < Array
   def swap
     op1 = pop
     op2 = pop
-    if check_nil([op1, op2])
-      insert(-1, op2, op1)
-    else
-      insert(-1, op1, op2)
-    end
+    insert(-1, op1, op2) unless check_nil([op1, op2])
   end
 
   def over
     op1 = pop
     op2 = pop
-    check_nil([op1, op2]) ? insert(-1, op2, op1) : insert(-1, op2, op1, op2)
+    insert(-1, op2, op1) unless check_nil([op1, op2])
   end
 
   def rot
     op1 = pop
     op2 = pop
     op3 = pop
-    if check_nil([op1, op2, op3])
-      [op3, op2, op1].each { |op| op.nil? ? nil : insert(-1, op) }
-    else
-      insert(-1, op2, op1, op3)
-    end
+    insert(-1, op2, op1, op3) unless check_nil([op1, op2, op3])
   end
 
   def invert
@@ -140,15 +132,16 @@ class ForthStack < Array
   def check_nil(ops)
     # if any of the operands are nil, return true
     ops.each do |op|
-      if op.nil?
-        warn 'Stack underflow'
-        return true
-      end
+      next unless op.nil?
+
+      warn 'Stack underflow'
+      # put the operands back on the stack, in the correct order
+      ops.reverse.each { |o| o.nil? ? nil : push(o) }
+      return true
     end
     false
   end
 end
-
 
 class MethodMapper
 
