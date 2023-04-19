@@ -1,14 +1,10 @@
-# TODO: 
-# - Add comments
-# - Word interpreter that can detect ." and ".       
+# TODO: Add comments
+# - Word interpreter that can detect ." and " .
 # - Check that AND OR, and XOR do what their supposed to.
 # - When words are implemented, need to figure out what to do
 #   when evaluating them
 # - IF parser
 # - Loop parser
-
-
-
 
 # Put this in a mixin for organization purposes.
 module Maths
@@ -143,60 +139,16 @@ class ForthStack < Array
   end
 end
 
-class MethodMapper
-
-  def initialize(stack)
-    @stack = stack
-    @words = {
-      "+": @stack.method(:add),
-      "-": @stack.method(:sub),
-      "*": @stack.method(:mul),
-      "/": @stack.method(:div),
-      "=": @stack.method(:equal),
-      ".": @stack.method(:dot),
-      "dump": @stack.method(:dump),
-      "over": @stack.method(:over),
-      "cr": @stack.method(:cr),
-      "rot": @stack.method(:rot),
-      "invert": @stack.method(:invert),
-      "drop": @stack.method(:drop),
-      "swap": @stack.method(:swap),
-      "emit": @stack.method(:emit),
-      "and": @stack.method(:and),
-      "or": @stack.method(:or),
-      "xor": @stack.method(:xor),
-      "dup": @stack.method(:dup)
-    }
-  end
-
-  def lookup(word)
-    @words[word.to_sym]
-  end
-
-  def key?(word)
-    @words.key?(word.to_sym)
-  end
-end
-
 # interpreturn of forth
 class ForthInterpreter
   def initialize(stack)
     @stack = stack
-    @map = MethodMapper.new(stack)
     @user_words = {}
   end
 
   def interpret
     $stdin.each_line do |line|
-      if line == "quit\n"
-        exit(0)
-      # if the line has a ':', enter the
-      # word interpreter
-      elsif line =~ /:/
-        interpret_word(line)
-      else
-        interpret_line(line)
-      end
+      line == "quit\n" ? exit(0) : interpret_line(mod_line(line))
       puts 'ok'
     end
   end
@@ -204,24 +156,41 @@ class ForthInterpreter
   private
 
   def interpret_line(line)
-    line.split.each do |word|
+    line.split.each_with_index do |word, i|
       word = word.downcase
-      if @user_words.key?(word.to_sym)
-        eval_user_word(word)
-      else
-        eval_word(word)
+      eval_user_word(word) if @user_words.key?(word.to_sym)
+      case eval_word(word)
+      when 1
+        interpret_word(line.split[i + 1..])
+      when 2
+        interpret_string(line.split[i + 1..])
       end
     end
   end
 
   def eval_word(word)
+    return 1 if word == ':'
+    return 2 if work == '."'
+
     if word =~ /\d+/
       @stack.push(word.to_i)
-    elsif @map.key?(word.to_sym)
-      @map.lookup(word.to_sym).call
+    elsif @stack.respond_to?(word)
+      @stack.send(word.to_sym)
     else
       warn "Unknown word: #{word}"
     end
+  end
+
+  def mod_line(line)
+    # replace + with add, - with sub, * with mul, etc
+    line = line.gsub('+', 'add')
+    line = line.gsub('-', 'sub')
+    line = line.gsub('*', 'mul')
+    line = line.gsub('/', 'div')
+    line = line.gsub('=', 'equal')
+    line = line.gsub('.', 'dot')
+    line = line.gsub('<', 'less_than')
+    line.gsub('>', 'greater_than')
   end
 
   def interpret_word(line)
@@ -231,44 +200,28 @@ class ForthInterpreter
     # then call the word interpreter on the
     # rest of the line
 
-    found = false
-    index = 0
-    line.split.each do |word|
-      if word == ':'
-        found = true
-      elsif found
-        name = word.downcase.to_sym
-        if @map.key?(name)
-          warn "Word already defined: #{word}"
-        else
-          @user_words.store(name, [])
-          remainder = line.split[index + 1..]
-          read_word(remainder, name)
-        end
-        break
-      else
-        eval_word(word)
-      end
-      index += 1
+    name = line[0].downcase.to_sym
+    if @stack.respond_to?(name)
+      warn "Word already defined: #{word}"
+    else
+      @user_words.store(name, [])
+      remainder = line[1..]
+      read_word(remainder, name)
     end
   end
 
   def read_word(line, name)
-    # read a word until the ";", then store
-    # the word in the @user_words hash
+    # read words from stdin until a ';', storing
+    # each word in the user_words hash under 'name'
     found = false
     line.each do |word|
-      if word == ';'
-        found = true
-        break
-      end
-      @user_words[name].push(word)
+      found = true if word == ';'
+      found ? (eval_word(word.downcase) if word != ';') : @user_words[name].push(word)
     end
-    # if no ; is found, read another from sdin
     return if found
- 
-    new_line = $stdin.gets
-    read_word(new_line.split, name)
+
+    # if no ; is found, read another from sdin
+    read_word($stdin.gets.split, name)
   end
 
   def eval_user_word(word)
