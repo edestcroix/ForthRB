@@ -265,15 +265,23 @@ class ForthInterpreter
       @stack.push(word.to_i)
     elsif @symbol_map.key?(word)
       @stack.send(@symbol_map[word].to_sym)
-    # FIXME: Filter out &, /, |, etc. Anything
-    # That generic ruby methods might have. That is,
-    # anything that respond_to? is true for that isn't
-    # explicitly defined as a stack method.
-    elsif !@symbol_map.value?(word) && @stack.respond_to?(word)
+    elsif valid_word(word)
       @stack.send(word.to_sym)
     else
       warn "Unknown word: #{word}"
     end
+  end
+
+  # checks if the word is a valid word. This is done to make sure keywords that are Ruby array
+  # methods don't get called. (Before eval_word just tested for stack.respond_to?
+  # which caused problems) Only checks for specific keywords, because at this point
+  # it has already been checked for being a user word, or a number or symbol.
+  def valid_word(word)
+    return false if word.nil?
+    return false if word == ';'
+    return false unless %w[dup drop swap over rot invert cr dump emit].include?(word)
+
+    true
   end
 
   # Iterate over the user defined word, evaluating each word
