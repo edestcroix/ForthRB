@@ -218,6 +218,7 @@ end
 
 @stack = ForthStack.new
 @user_words = {}
+@keywords = %w[cr drop dump dup emit invert over rot swap]
 @symbol_map = { '+' => 'add', '-' => 'sub', '*' => 'mul', '/' => 'div',
                 '=' => 'equal', '.' => 'dot', '<' => 'lesser', '>' => 'greater' }
 
@@ -230,18 +231,14 @@ def interpret
   end
 end
 
-# Recursevely iterates over the line passed to it,
-# evaluating the words as it goes. When encountering user
-# defined words, calls eval_user_word. When encountering string
-# or user word definition start characters, passes the rest of the list
-# into the appropriate interpreters.
+# Interprets a line of Forth code.
 def interpret_line(line)
   return if line.nil? || line.empty?
 
   word = line.shift.downcase
   if @user_words.key?(word.to_sym)
     # eval_user_word consumes its input. Have to clone it.
-    eval_user_word(@user_words[word.to_sym].map(&:clone))
+    eval_word_list(@user_words[word.to_sym].map(&:clone))
     interpret_line(line) unless line.empty?
   else
     dispatch(line, word)
@@ -250,14 +247,18 @@ end
 
 # figures out what to do with non-user defined words.
 # (because user defined words are the easy ones)
+# All methods other than eval_word take in the line
+# that starts after their associated keyword and returns
+# whatever is left on the line after their domain ends.
+# (E.g, if a : is encountered, call create_word on the
+# line after the :, it will continue parsing the word definition
+# until it finds a ;, then return anything after the ;. )
 def dispatch(line, word)
   case word
   when '."'
-    # eval_string returns the line after the string,
-    # so continue the interpreter on this part.
     interpret_line(eval_string(line))
   when ':'
-    interpret_line(interpret_word(line))
+    interpret_line(create_word(line))
   when '('
     interpret_line(eval_comment(line))
   when 'if'
@@ -271,20 +272,21 @@ end
 def eval_if(line)
   new_if = ForthIf.new
   line = new_if.read_line(line)
-  eval_user_word(new_if.eval(@stack))
+  eval_word_list(new_if.eval(@stack))
   line
 end
 
 # evaluate lines until the ":", at which point initialize a new word
 # with the next element in the line as the key, then read every
 # word until a ";" is found into the user_words hash.
-def interpret_word(line)
+def create_word(line)
   return warn 'Empty word definition' if line.empty?
 
   name = line[0].downcase.to_sym
   # This blocks overwriting system keywords, while still allowing
   # for user defined words to be overwritten.
-  if @stack.respond_to?(name) || @symbol_map.key?(name.to_sym) || name =~ /\d+/
+  # TODO: Fully account for all disallowed words.
+  if @keywords.include?(name) || @symbol_map.key?(name.to_sym) || name =~ /\d+/
     warn "Word already defined: #{name}"
   else
     @user_words.store(name, [])
@@ -314,13 +316,11 @@ end
 # prints every word in the line until a " is found,
 # then returns the rest of the line.
 def eval_string(line)
-  if line.include?('"')
-    print line[0..line.index('"') - 1].join(' ')
-    print ' '
-    line[line.index('"') + 1..]
-  else
-    warn 'No closing " found'
-  end
+  return warn 'No closing " found' unless line.include?('"')
+
+  print line[0..line.index('"') - 1].join(' ')
+  print ' '
+  line[line.index('"') + 1..]
 end
 
 def eval_comment(line)
@@ -354,7 +354,7 @@ end
 def valid_word(word)
   return false if word.nil?
   return false if word == ';'
-  return false unless %w[cr drop dump dup emit invert over rot swap].include?(word)
+  return false unless @keywords.include?(word)
 
   true
 end
@@ -363,28 +363,28 @@ end
 # in the list. Can evaluate strings currently.
 # TODO: Once LOOPs are implemented,
 # this will have to handle them somehow.
-def eval_user_word(word_list)
+def eval_word_list(word_list)
   return if word_list.nil? || word_list.empty?
 
   w = word_list.shift
   # yes, I made a weird function just so I could make this a one liner.
-  return eval_if_and_cont(w, proc { eval_user_word(word_list) }) if w.is_a?(ForthIf)
+  return eval_if_and_cont(w, proc { eval_word_list(word_list) }) if w.is_a?(ForthIf)
 
   case w.downcase
   when '."'
-    eval_user_word(eval_string(word_list))
+    eval_word_list(eval_string(word_list))
   when '('
-    eval_user_word(eval_comment(word_list))
+    eval_word_list(eval_comment(word_list))
   when 'if'
-    eval_user_word(eval_if(word_list))
+    eval_word_list(eval_if(word_list))
   else
     eval_word(w.downcase, false)
-    eval_user_word(word_list) unless word_list.empty?
+    eval_word_list(word_list) unless word_list.empty?
   end
 end
 
 def eval_if_and_cont(if_obj, continute_func)
-  eval_user_word(if_obj.eval(@stack))
+  eval_word_list(if_obj.eval(@stack))
   continute_func.call
 end
 
