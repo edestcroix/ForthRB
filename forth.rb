@@ -147,6 +147,77 @@ class ForthStack < Array
   end
 end
 
+# Holds a forth IF statement. Calling read_line will start parsing
+# the IF statement starting with the line given. Reads into
+# the true_block until an ELSE or THEN is found, then reads into
+# the false_block until a THEN is found if an ELSE was found.
+# If another IF is encountered, creates a new ForthIf class,
+# and starts it parsing on the rest of the line, resuming it's
+# own parsing where that IF left off.
+class ForthIf
+  def initialize
+    @true_block = []
+    @false_block = []
+  end
+
+  # NOTE: Does it need to parse loops? Two ways to do this:
+  # 1 - Have the IF create LOOP objects when loops are found.
+  # 2 - Completely ignore them, and have them be constructed
+  # during evaluation of the IF block.
+
+  def eval(stack)
+    puts "True block: #{@true_block}"
+    puts "False block: #{@false_block}"
+    top = stack.pop
+    return warn 'Stack underflow' if top.nil?
+    return @false_block if top.zero?
+    
+    @true_block
+  end
+
+  def read_line(line)
+    puts 'reading if'
+    read_true(line)
+  end
+
+  private
+
+  def read_true(line)
+    puts 'reading true'
+    read_true($stdin.gets.split) if line.empty?
+    word = line.shift
+    return [] if word.nil?
+
+    word = word.downcase
+    return line if word == 'then'
+    return read_false(line) if word == 'else'
+
+    read_true(add_to_block(@true_block, word, line))
+  end
+
+  def add_to_block(block, word, line)
+    if word == 'if'
+      new_if = ForthIf.new
+      line = new_if.read_line(line)
+      block << new_if
+    else
+      block << word
+    end
+    line
+  end
+
+  def read_false(line)
+    puts 'reading true'
+    read_true($stdin.gets.split) if line.empty?
+    word = line.shift
+    return [] if word.nil?
+
+    word = word.downcase
+    read_false(add_to_block(@false_block, word, line)) if word != 'then'
+    line
+  end
+end
+
 # interpreturn of forth
 class ForthInterpreter
   def initialize(stack = ForthStack.new)
@@ -195,6 +266,13 @@ class ForthInterpreter
       interpret_line(eval_string(line))
     when ':'
       interpret_line(interpret_word(line))
+    when '('
+      interpret_line(eval_comment(line))
+    when 'if'
+      new_if = ForthIf.new
+      line = new_if.read_line(line)
+      eval_user_word(new_if.eval(@stack))
+      interpret_line(line)
     else
       eval_word(word, true)
       interpret_line(line)
@@ -249,6 +327,12 @@ class ForthInterpreter
     end
   end
 
+  def eval_comment(line)
+    return warn 'No closing ) found' unless line.include?(')')
+
+    line[line.index(')') + 1..]
+  end
+
   # evaluate a word. If it's a number, push it to the stack,
   # and print it. Otherwise, if it is a symbol in the symbol_map,
   # call the corresponding method on the stack from the symbol_map.
@@ -284,16 +368,28 @@ class ForthInterpreter
   # TODO: Once IFs and LOOPs are implemented,
   # this will have to handle them somehow.
   def eval_user_word(word_list)
-    return if word_list.empty?
+    return if word_list.nil? || word_list.empty?
 
-    w = word_list.shift.downcase
+    w = word_list.shift
+    if w.is_a?(ForthIf)
+      eval_if(w)
+      eval_user_word(word_list) unless word_list.empty?
+      return
+    end
+    w = w.downcase
     if w == '."'
       eval_user_word(eval_string(word_list))
+    elsif w == '('
+      eval_user_word(eval_comment(word_list))
     else
       eval_word(w, false)
       eval_user_word(word_list) unless word_list.empty?
     end
   end
+end
+
+def eval_if(if_obj)
+  eval_user_word(if_obj.eval(@stack))
 end
 
 ForthInterpreter.new.interpret
