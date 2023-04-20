@@ -65,7 +65,7 @@ def dispatch(line, word)
   when 'if'
     interpret_line(eval_if(line, false))
   else
-    eval_word(word, true)
+    eval_word(word)
     interpret_line(line)
   end
 end
@@ -135,9 +135,8 @@ end
 # call the corresponding method on the stack from the symbol_map.
 # Otherwise, if it is a method on the stack, call it.
 # If it is none of these, warn the user.
-def eval_word(word, print)
+def eval_word(word)
   if word.to_i.to_s == word
-    print "#{word} " if print
     @stack.push(word.to_i)
   elsif @symbol_map.key?(word)
     @stack.send(@symbol_map[word].to_sym)
@@ -179,7 +178,7 @@ def eval_word_list(word_list)
   when 'if'
     eval_word_list(eval_if(word_list, true))
   else
-    eval_word(w.downcase, false)
+    eval_word(w.downcase)
     eval_word_list(word_list) unless word_list.empty?
   end
 end
