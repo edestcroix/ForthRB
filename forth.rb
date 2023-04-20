@@ -171,19 +171,17 @@ class ForthIf
     top = stack.pop
     return warn 'Stack underflow' if top.nil?
     return @false_block if top.zero?
-    
+
     @true_block
   end
 
   def read_line(line)
-    puts 'reading if'
     read_true(line)
   end
 
   private
 
   def read_true(line)
-    puts 'reading true'
     read_true($stdin.gets.split) if line.empty?
     word = line.shift
     return [] if word.nil?
@@ -218,178 +216,176 @@ class ForthIf
   end
 end
 
-# interpreturn of forth
-class ForthInterpreter
-  def initialize(stack = ForthStack.new)
-    @stack = stack
-    @user_words = {}
-    @symbol_map = { '+' => 'add', '-' => 'sub', '*' => 'mul', '/' => 'div',
-                    '=' => 'equal', '.' => 'dot', '<' => 'lesser', '>' => 'greater' }
-  end
+@stack = ForthStack.new
+@user_words = {}
+@symbol_map = { '+' => 'add', '-' => 'sub', '*' => 'mul', '/' => 'div',
+                '=' => 'equal', '.' => 'dot', '<' => 'lesser', '>' => 'greater' }
 
-  def interpret
+def interpret
+  print '> '
+  $stdin.each_line do |line|
+    %W[quit\n exit\n].include?(line) ? exit(0) : interpret_line(line.split)
+    puts 'ok'
     print '> '
-    $stdin.each_line do |line|
-      %W[quit\n exit\n].include?(line) ? exit(0) : interpret_line(line.split)
-      puts 'ok'
-      print '> '
-    end
-  end
-
-  private
-
-  # Recursevely iterates over the line passed to it,
-  # evaluating the words as it goes. When encountering user
-  # defined words, calls eval_user_word. When encountering string
-  # or user word definition start characters, passes the rest of the list
-  # into the appropriate interpreters.
-  def interpret_line(line)
-    return if line.nil? || line.empty?
-
-    word = line.shift.downcase
-    if @user_words.key?(word.to_sym)
-      # eval_user_word consumes its input. Have to clone it.
-      eval_user_word(@user_words[word.to_sym].map(&:clone))
-      interpret_line(line) unless line.empty?
-    else
-      dispatch(line, word)
-    end
-  end
-
-  # figures out what to do with non-user defined words.
-  # (because user defined words are the easy ones)
-  def dispatch(line, word)
-    case word
-    when '."'
-      # eval_string returns the line after the string,
-      # so continue the interpreter on this part.
-      interpret_line(eval_string(line))
-    when ':'
-      interpret_line(interpret_word(line))
-    when '('
-      interpret_line(eval_comment(line))
-    when 'if'
-      new_if = ForthIf.new
-      line = new_if.read_line(line)
-      eval_user_word(new_if.eval(@stack))
-      interpret_line(line)
-    else
-      eval_word(word, true)
-      interpret_line(line)
-    end
-  end
-
-  # evaluate lines until the ":", at which point initialize a new word
-  # with the next element in the line as the key, then read every
-  # word until a ";" is found into the user_words hash.
-  def interpret_word(line)
-    return warn 'Empty word definition' if line.empty?
-
-    name = line[0].downcase.to_sym
-    # This blocks overwriting system keywords, while still allowing
-    # for user defined words to be overwritten.
-    if @stack.respond_to?(name) || @symbol_map.key?(name.to_sym) || name =~ /\d+/
-      warn "Word already defined: #{name}"
-    else
-      @user_words.store(name, [])
-      read_word(line[1..], name)
-    end
-  end
-
-  # TODO: Prevent certain words from being
-  # added to user defined words. In particular,
-  # don't allow word definition inside a word definition.
-  # Might also be good to have error checking
-  # while defining the word, not just when evaluating it. But
-  # that's less important.
-
-  # read words from stdin until a ';', storing
-  # each word in the user_words hash under 'name'
-  def read_word(line, name)
-    read_word($stdin.gets.split, name) if line.empty?
-    word = line.shift
-    return line if word == ';'
-    return [] if word.nil?
-
-    @user_words[name].push(word)
-    read_word(line, name)
-  end
-
-  # prints every word in the line until a " is found,
-  # then returns the rest of the line.
-  def eval_string(line)
-    if line.include?('"')
-      print line[0..line.index('"') - 1].join(' ')
-      print ' '
-      line[line.index('"') + 1..]
-    else
-      warn 'No closing " found'
-    end
-  end
-
-  def eval_comment(line)
-    return warn 'No closing ) found' unless line.include?(')')
-
-    line[line.index(')') + 1..]
-  end
-
-  # evaluate a word. If it's a number, push it to the stack,
-  # and print it. Otherwise, if it is a symbol in the symbol_map,
-  # call the corresponding method on the stack from the symbol_map.
-  # Otherwise, if it is a method on the stack, call it.
-  # If it is none of these, warn the user.
-  def eval_word(word, print)
-    if word.to_i.to_s == word
-      print "#{word} " if print
-      @stack.push(word.to_i)
-    elsif @symbol_map.key?(word)
-      @stack.send(@symbol_map[word].to_sym)
-    elsif valid_word(word)
-      @stack.send(word.to_sym)
-    else
-      warn "Unknown word: #{word}"
-    end
-  end
-
-  # checks if the word is a valid word. This is done to make sure keywords that are Ruby array
-  # methods don't get called. (Before eval_word just tested for stack.respond_to?
-  # which caused problems) Only checks for specific keywords, because at this point
-  # it has already been checked for being a user word, or a number or symbol.
-  def valid_word(word)
-    return false if word.nil?
-    return false if word == ';'
-    return false unless %w[cr drop dump dup emit invert over rot swap].include?(word)
-
-    true
-  end
-
-  # Iterate over the user defined word, evaluating each word
-  # in the list. Can evaluate strings currently.
-  # TODO: Once IFs and LOOPs are implemented,
-  # this will have to handle them somehow.
-  def eval_user_word(word_list)
-    return if word_list.nil? || word_list.empty?
-
-    w = word_list.shift
-    if w.is_a?(ForthIf)
-      eval_if(w)
-      eval_user_word(word_list) unless word_list.empty?
-      return
-    end
-    w = w.downcase
-    if w == '."'
-      eval_user_word(eval_string(word_list))
-    elsif w == '('
-      eval_user_word(eval_comment(word_list))
-    else
-      eval_word(w, false)
-      eval_user_word(word_list) unless word_list.empty?
-    end
   end
 end
 
-def eval_if(if_obj)
+# Recursevely iterates over the line passed to it,
+# evaluating the words as it goes. When encountering user
+# defined words, calls eval_user_word. When encountering string
+# or user word definition start characters, passes the rest of the list
+# into the appropriate interpreters.
+def interpret_line(line)
+  return if line.nil? || line.empty?
+
+  word = line.shift.downcase
+  if @user_words.key?(word.to_sym)
+    # eval_user_word consumes its input. Have to clone it.
+    eval_user_word(@user_words[word.to_sym].map(&:clone))
+    interpret_line(line) unless line.empty?
+  else
+    dispatch(line, word)
+  end
+end
+
+# figures out what to do with non-user defined words.
+# (because user defined words are the easy ones)
+def dispatch(line, word)
+  case word
+  when '."'
+    # eval_string returns the line after the string,
+    # so continue the interpreter on this part.
+    interpret_line(eval_string(line))
+  when ':'
+    interpret_line(interpret_word(line))
+  when '('
+    interpret_line(eval_comment(line))
+  when 'if'
+    interpret_line(eval_if(line))
+  else
+    eval_word(word, true)
+    interpret_line(line)
+  end
+end
+
+def eval_if(line)
+  new_if = ForthIf.new
+  line = new_if.read_line(line)
+  eval_user_word(new_if.eval(@stack))
+  line
+end
+
+# evaluate lines until the ":", at which point initialize a new word
+# with the next element in the line as the key, then read every
+# word until a ";" is found into the user_words hash.
+def interpret_word(line)
+  return warn 'Empty word definition' if line.empty?
+
+  name = line[0].downcase.to_sym
+  # This blocks overwriting system keywords, while still allowing
+  # for user defined words to be overwritten.
+  if @stack.respond_to?(name) || @symbol_map.key?(name.to_sym) || name =~ /\d+/
+    warn "Word already defined: #{name}"
+  else
+    @user_words.store(name, [])
+    read_word(line[1..], name)
+  end
+end
+
+# TODO: Prevent certain words from being
+# added to user defined words. In particular,
+# don't allow word definition inside a word definition.
+# Might also be good to have error checking
+# while defining the word, not just when evaluating it. But
+# that's less important.
+
+# read words from stdin until a ';', storing
+# each word in the user_words hash under 'name'
+def read_word(line, name)
+  read_word($stdin.gets.split, name) if line.empty?
+  word = line.shift
+  return line if word == ';'
+  return [] if word.nil?
+
+  @user_words[name].push(word)
+  read_word(line, name)
+end
+
+# prints every word in the line until a " is found,
+# then returns the rest of the line.
+def eval_string(line)
+  if line.include?('"')
+    print line[0..line.index('"') - 1].join(' ')
+    print ' '
+    line[line.index('"') + 1..]
+  else
+    warn 'No closing " found'
+  end
+end
+
+def eval_comment(line)
+  return warn 'No closing ) found' unless line.include?(')')
+
+  line[line.index(')') + 1..]
+end
+
+# evaluate a word. If it's a number, push it to the stack,
+# and print it. Otherwise, if it is a symbol in the symbol_map,
+# call the corresponding method on the stack from the symbol_map.
+# Otherwise, if it is a method on the stack, call it.
+# If it is none of these, warn the user.
+def eval_word(word, print)
+  if word.to_i.to_s == word
+    print "#{word} " if print
+    @stack.push(word.to_i)
+  elsif @symbol_map.key?(word)
+    @stack.send(@symbol_map[word].to_sym)
+  elsif valid_word(word)
+    @stack.send(word.to_sym)
+  else
+    warn "Unknown word: #{word}"
+  end
+end
+
+# checks if the word is a valid word. This is done to make sure keywords that are Ruby array
+# methods don't get called. (Before eval_word just tested for stack.respond_to?
+# which caused problems) Only checks for specific keywords, because at this point
+# it has already been checked for being a user word, or a number or symbol.
+def valid_word(word)
+  return false if word.nil?
+  return false if word == ';'
+  return false unless %w[cr drop dump dup emit invert over rot swap].include?(word)
+
+  true
+end
+
+# Iterate over the user defined word, evaluating each word
+# in the list. Can evaluate strings currently.
+# TODO: Once LOOPs are implemented,
+# this will have to handle them somehow.
+def eval_user_word(word_list)
+  return if word_list.nil? || word_list.empty?
+
+  w = word_list.shift
+  # yes, I made a weird function just so I could make this a one liner.
+  return eval_if_and_cont(w, proc { eval_user_word(word_list) }) if w.is_a?(ForthIf)
+
+  case w.downcase
+  when '."'
+    eval_user_word(eval_string(word_list))
+  when '('
+    eval_user_word(eval_comment(word_list))
+  when 'if'
+    eval_user_word(eval_if(word_list))
+  else
+    eval_word(w.downcase, false)
+    eval_user_word(word_list) unless word_list.empty?
+  end
+end
+
+def eval_if_and_cont(if_obj, continute_func)
   eval_user_word(if_obj.eval(@stack))
+  continute_func.call
 end
 
-ForthInterpreter.new.interpret
+interpret
