@@ -170,6 +170,12 @@ def eval_word_list(word_list)
   # yes, I made a weird function just so I could make this a one liner.
   return eval_if_and_cont(w, proc { eval_word_list(word_list) }) if w.is_a?(ForthIf)
 
+  if @user_words.key?(w.downcase.to_sym)
+    # eval_user_word consumes its input. Have to clone it.
+    eval_word_list(@user_words[w.downcase.to_sym].map(&:clone))
+    return eval_word_list(word_list) unless word_list.empty?
+  end
+
   case w.downcase
   when '."'
     eval_word_list(eval_string(word_list))
