@@ -4,11 +4,10 @@
 # - IF parser (Do as a class?)
 # - Loop parser (Do as a class?)
 
-
 # NOTE: Idea for IF and LOOP
-# When the IF/LOOP keywores are found, enter their 
-# parsers like for the words and strings, but store them into a class. 
-# Once the IF/LOOP is parsed, it is returned, and then 
+# When the IF/LOOP keywores are found, enter their
+# parsers like for the words and strings, but store them into a class.
+# Once the IF/LOOP is parsed, it is returned, and then
 # call the newly created classes eval() method and pass it the stack as an argument.
 # Then the classes can figure out what to evaluate. This shouldn't be too hard for regular parsing,
 # but when evaluating a user word it might get tricky. Either save the raw IF/LOOP in the word,
@@ -49,6 +48,7 @@ end
 # Implements Forth operations over top a Ruby array.
 class ForthStack < Array
   include Maths
+
   def initialize(*args)
     super(*args)
   end
@@ -114,9 +114,6 @@ class ForthStack < Array
   end
 
   def dump
-    # print the stack in a human-readable format,
-    # in reverse because the stack opeated on
-    # from the end of the array
     print self
     puts ''
   end
@@ -153,11 +150,12 @@ class ForthInterpreter
   def initialize(stack = ForthStack.new)
     @stack = stack
     @user_words = {}
+    @symbol_map = { '+' => 'add', '-' => 'sub', '*' => 'mul', '/' => 'div',
+                    '=' => 'equal', '.' => 'dot', '<' => 'lesser', '>' => 'greater' }
   end
 
   def interpret
     $stdin.each_line do |line|
-      line = mod_line(line)
       %W[quit\n exit\n].include?(line) ? exit(0) : interpret_line(line.split)
       puts 'ok'
     end
@@ -166,42 +164,40 @@ class ForthInterpreter
   private
 
   def interpret_line(line)
-    line.each_with_index do |word, i|
-      word = word.downcase
-      if @user_words.key?(word.to_sym)
-        eval_user_word(@user_words[word.to_sym])
+    return if line.empty?
+
+    word = line.shift.downcase
+    if @user_words.key?(word.to_sym)
+      eval_user_word(@user_words[word.to_sym])
+    else
+      case word
+      when '."'
+        # eval_string returns the line after the string,
+        # so continue the interpreter on this part.
+        interpret_line(eval_string(line)) unless line.empty?
+        return
+      when ':'
+        # TODO: Make interpret_word behave like eval_string,
+        # in that it returns the line after the word definition.
+        # (Don't really need to do this, but nice for consistency)
+        interpret_word(line)
+        return
       else
-        case eval_word(word)
-        when 1
-          interpret_line(eval_string(line[i + 1..]))
-          break
-        when 2
-          interpret_word(line[i + 1..])
-          break
-        end
+        eval_word(word, true)
       end
     end
+    interpret_line(line) unless line.empty?
   end
 
   # substitute out all the special characters in the line for
   # the words that correspond to the appropriate stack methods.
+  # FIXME: Flaw with this method is that the interpreter
+  # will recognize the word "add", when it should only
+  # recognize the character "+". Should remove them.
   def mod_line(line)
     line.gsub(%r{(?!.")[+/\-=*.<>]},
               { '+' => 'add', '-' => 'sub', '*' => 'mul', '/' => 'div',
                 '=' => 'equal', '.' => 'dot', '<' => 'lesser', '>' => 'greater' })
-  end
-
-  def eval_string(line)
-    # everything on the line should be printed as-is
-    # until a " is found. if one isn't, error.
-    # everything after the " should be evaluated
-    if line.include?('"')
-      print line[0..line.index('"') - 1].join(' ')
-      print ' '
-      line[line.index('"') + 1..]
-    else
-      warn 'No closing " found'
-    end
   end
 
   def interpret_word(line)
@@ -211,9 +207,13 @@ class ForthInterpreter
     # then call the word interpreter on the
     # rest of the line
 
+    if line[0].nil?
+      warn 'No word name given'
+      return
+    end
     name = line[0].downcase.to_sym
-    if @stack.respond_to?(name)
-      warn "Word already defined: #{word}"
+    if @stack.respond_to?(name) || @symbol_map.key?(name.to_sym)
+      warn "Word already defined: #{name}"
     else
       @user_words.store(name, [])
       read_word(line[1..], name)
@@ -226,7 +226,7 @@ class ForthInterpreter
     found = false
     line.each do |word|
       found = true if word == ';'
-      found ? (eval_word(word.downcase) if word != ';') : @user_words[name].push(word)
+      found ? (eval_word(word.downcase, true) if word != ';') : @user_words[name].push(word)
     end
     return if found
 
@@ -234,13 +234,27 @@ class ForthInterpreter
     read_word($stdin.gets.split, name)
   end
 
-  def eval_word(word)
-    return 1 if word == '."'
-    return 2 if word == ':'
+  def eval_string(line)
+    # everything on the line should be printed as-is
+    # until a " is found. if one isn't, error.
+    # everything after the " should be evaluated
+    if line.include?('"')
+      print line[0..line.index('"') - 1].join(' ')
+      print ' '
+      line[line.index('"') + 1..]
+    else
+      warn 'No closing " found'
+      []
+    end
+  end
 
+  def eval_word(word, print)
     if word =~ /\d+/
+      print "#{word} " if print
       @stack.push(word.to_i)
-    elsif @stack.respond_to?(word)
+    elsif @symbol_map.key?(word)
+      @stack.send(@symbol_map[word].to_sym)
+    elsif !@symbol_map.value?(word) && @stack.respond_to?(word)
       @stack.send(word.to_sym)
     else
       warn "Unknown word: #{word}"
@@ -248,12 +262,14 @@ class ForthInterpreter
   end
 
   def eval_user_word(word_list)
-    word_list.each do |w|
-      if w == '."'
-        eval_user_word(eval_string(word_list[word_list.index(w) + 1..]))
-        break
-      end
-      eval_word(w.downcase)
+    return if word_list.empty?
+
+    w = word_list.shift.downcase
+    if w == '."'
+      eval_user_word(eval_string(word_list))
+    else
+      eval_word(w, false)
+      eval_user_word(word_list) unless word_list.empty?
     end
   end
 end
