@@ -28,6 +28,7 @@ module Maths
     mathop(:*)
   end
 
+  # FIXME: Division by zero
   def div
     mathop(:/)
   end
@@ -44,6 +45,14 @@ module Maths
     mathop(:^)
   end
 end
+
+# FIXME: Should change Stack to
+# not inherit from Array, and instead use
+# an Array internally. This way, only
+# the public stack methods will be callable.
+# As it is now, any input keywords that
+# match an Array method will try to be called
+# on the stack and either fail or break things.
 
 # Implements Forth operations over top a Ruby array.
 class ForthStack < Array
@@ -256,6 +265,10 @@ class ForthInterpreter
       @stack.push(word.to_i)
     elsif @symbol_map.key?(word)
       @stack.send(@symbol_map[word].to_sym)
+    # FIXME: Filter out &, /, |, etc. Anything
+    # That generic ruby methods might have. That is,
+    # anything that respond_to? is true for that isn't
+    # explicitly defined as a stack method.
     elsif !@symbol_map.value?(word) && @stack.respond_to?(word)
       @stack.send(word.to_sym)
     else
