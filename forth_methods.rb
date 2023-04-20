@@ -161,8 +161,6 @@ class ForthIf
     # If the IF is not good (there wasn't an ending THEN) warn and do nothing.
     return warn 'Missing ending THEN' unless @good
 
-    puts "True block: #{@true_block}"
-    puts "False block: #{@false_block}"
     top = stack.pop
     return warn 'Stack underflow' if top.nil?
     return @false_block if top.zero?
