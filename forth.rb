@@ -244,7 +244,6 @@ class ForthInterpreter
       line[line.index('"') + 1..]
     else
       warn 'No closing " found'
-      []
     end
   end
 
@@ -254,7 +253,7 @@ class ForthInterpreter
   # Otherwise, if it is a method on the stack, call it.
   # If it is none of these, warn the user.
   def eval_word(word, print)
-    if word =~ /\d+/
+    if word.to_i.to_s == word
       print "#{word} " if print
       @stack.push(word.to_i)
     elsif @symbol_map.key?(word)
