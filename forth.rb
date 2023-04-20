@@ -189,14 +189,6 @@ class ForthInterpreter
     interpret_line(line) unless line.empty?
   end
 
-  # substitute out all the special characters in the line for
-  # the words that correspond to the appropriate stack methods.
-  def mod_line(line)
-    line.gsub(%r{(?!.")[+/\-=*.<>]},
-              { '+' => 'add', '-' => 'sub', '*' => 'mul', '/' => 'div',
-                '=' => 'equal', '.' => 'dot', '<' => 'lesser', '>' => 'greater' })
-  end
-
   def interpret_word(line)
     # evaluate lines until the ":", at which
     # point initialize a new word with the next
