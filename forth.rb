@@ -191,9 +191,6 @@ class ForthInterpreter
 
   # substitute out all the special characters in the line for
   # the words that correspond to the appropriate stack methods.
-  # FIXME: Flaw with this method is that the interpreter
-  # will recognize the word "add", when it should only
-  # recognize the character "+". Should remove them.
   def mod_line(line)
     line.gsub(%r{(?!.")[+/\-=*.<>]},
               { '+' => 'add', '-' => 'sub', '*' => 'mul', '/' => 'div',
