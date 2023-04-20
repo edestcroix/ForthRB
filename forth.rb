@@ -157,9 +157,11 @@ class ForthInterpreter
   end
 
   def interpret
+    print '> '
     $stdin.each_line do |line|
       %W[quit\n exit\n].include?(line) ? exit(0) : interpret_line(line.split)
       puts 'ok'
+      print '> '
     end
   end
 
