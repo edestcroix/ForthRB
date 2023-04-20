@@ -55,16 +55,39 @@ class ForthStack < Array
     super(*args)
   end
 
+  def cr
+    puts ''
+  end
+
+  def dot
+    op = pop
+    print "#{op} " unless check_nil([op])
+  end
+
+  def drop
+    pop
+  end
+
+  def dump
+    print self
+    puts ''
+  end
+
+  def dup
+    op = pop
+    insert(-1, op, op) unless check_nil([op])
+  end
+
+  def emit
+    # print ASCII of the top of the stack
+    op = pop
+    print "#{op.to_s.codepoints[0]} " unless check_nil([op])
+  end
+
   def equal
     op1 = pop
     op2 = pop
     (push op1 == op2 ? -1 : 0) unless check_nil([op1, op2])
-  end
-
-  def lesser
-    op1 = pop
-    op2 = pop
-    (push op2 < op1 ? -1 : 0) unless check_nil([op1, op2])
   end
 
   def greater
@@ -73,19 +96,14 @@ class ForthStack < Array
     (push op2 < op1 ? -1 : 0) unless check_nil([op1, op2])
   end
 
-  def dup
-    op = pop
-    insert(-1, op, op) unless check_nil([op])
+  def invert
+    push(~pop)
   end
 
-  def drop
-    pop
-  end
-
-  def swap
+  def lesser
     op1 = pop
     op2 = pop
-    insert(-1, op1, op2) unless check_nil([op1, op2])
+    (push op2 < op1 ? -1 : 0) unless check_nil([op1, op2])
   end
 
   def over
@@ -101,28 +119,10 @@ class ForthStack < Array
     insert(-1, op2, op1, op3) unless check_nil([op1, op2, op3])
   end
 
-  def invert
-    push(~pop)
-  end
-
-  def cr
-    puts ''
-  end
-
-  def dump
-    print self
-    puts ''
-  end
-
-  def dot
-    op = pop
-    print "#{op} " unless check_nil([op])
-  end
-
-  def emit
-    # print ASCII of the top of the stack
-    op = pop
-    print "#{op.to_s.codepoints[0]} " unless check_nil([op])
+  def swap
+    op1 = pop
+    op2 = pop
+    insert(-1, op1, op2) unless check_nil([op1, op2])
   end
 
   private
@@ -274,7 +274,7 @@ class ForthInterpreter
   def valid_word(word)
     return false if word.nil?
     return false if word == ';'
-    return false unless %w[dup drop swap over rot invert cr dump emit].include?(word)
+    return false unless %w[cr drop dump dup emit invert over rot swap].include?(word)
 
     true
   end
