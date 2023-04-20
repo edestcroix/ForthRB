@@ -184,7 +184,7 @@ def eval_word_list(word_list)
 end
 
 def eval_if_and_cont(if_obj, continute_func)
-  eval_word_list(if_obj.eval(@stack))
+  eval_word_list(if_obj.eval(@stack).map(&:clone))
   continute_func.call
 end
 
