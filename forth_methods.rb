@@ -141,9 +141,15 @@ end
 # and starts it parsing on the rest of the line, resuming it's
 # own parsing where that IF left off.
 class ForthIf
-  def initialize
+  # takes in fail_on_empty, which tells the IF what to
+  # do if it encounters an empty line. If it's true,
+  # it sets @good to false. If it's false, it will keep
+  # looking for more lines to read until it finds a THEN.
+  def initialize(bad_on_empty)
     @true_block = []
     @false_block = []
+    @good = true
+    @bad_on_empty = bad_on_empty
   end
 
   # NOTE: Does it need to parse loops? Two ways to do this:
@@ -152,6 +158,9 @@ class ForthIf
   # during evaluation of the IF block.
 
   def eval(stack)
+    # If the IF is not good (there wasn't an ending THEN) warn and do nothing.
+    return warn 'Missing ending THEN' unless @good
+
     puts "True block: #{@true_block}"
     puts "False block: #{@false_block}"
     top = stack.pop
@@ -168,36 +177,51 @@ class ForthIf
   private
 
   def read_true(line)
-    read_true($stdin.gets.split) if line.empty?
+    # set @good to false if we're expecting a line and we get an empty line
+    # If the IF being created is in a user defined word,
+    # there should be a THEN statement before the end of the line.
+    # If there isn't, the IF is not good, and since we are in
+    # a user defined word, we should warn instead of trying to
+    # read more lines from stdin.
+    if @bad_on_empty && line.empty?
+      @good = false
+      return []
+    end
+
+    return read_true($stdin.gets.split) if line.empty?
+
     word = line.shift
     return [] if word.nil?
 
-    word = word.downcase
-    return line if word == 'then'
-    return read_false(line) if word == 'else'
+    return line if word.downcase == 'then'
+    return read_false(line) if word.downcase == 'else'
 
     read_true(add_to_block(@true_block, word, line))
   end
 
+  def read_false(line)
+    if @bad_on_empty && line.empty?
+      @good = false
+      return []
+    end
+    return read_false($stdin.gets.split) if line.empty?
+
+    word = line.shift
+    return [] if word.nil?
+
+    return line if word.downcase == 'then'
+
+    read_false(add_to_block(@false_block, word, line))
+  end
+
   def add_to_block(block, word, line)
-    if word == 'if'
-      new_if = ForthIf.new
+    if word.downcase == 'if'
+      new_if = ForthIf.new(@bad_on_empty)
       line = new_if.read_line(line)
       block << new_if
     else
       block << word
     end
-    line
-  end
-
-  def read_false(line)
-    puts 'reading true'
-    read_true($stdin.gets.split) if line.empty?
-    word = line.shift
-    return [] if word.nil?
-
-    word = word.downcase
-    read_false(add_to_block(@false_block, word, line)) if word != 'then'
     line
   end
 end

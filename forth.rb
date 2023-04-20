@@ -5,11 +5,10 @@ require_relative 'forth_methods'
 # TODO: Add comments
 # - Only print newlines in output when neccessary.
 # - Check that AND OR, and XOR do what they're supposed to.
-# - IF parser (Do as a class?)
 # - Loop parser (Do as a class?)
 
 # NOTE: Idea for IF and LOOP
-# When the IF/LOOP keywores are found, enter their
+# When the IF/LOOP keywords are found, enter their
 # parsers like for the words and strings, but store them into a class.
 # Once the IF/LOOP is parsed, it is returned, and then
 # call the newly created classes eval() method and pass it the stack as an argument.
@@ -64,15 +63,15 @@ def dispatch(line, word)
   when '('
     interpret_line(eval_comment(line))
   when 'if'
-    interpret_line(eval_if(line))
+    interpret_line(eval_if(line, false))
   else
     eval_word(word, true)
     interpret_line(line)
   end
 end
 
-def eval_if(line)
-  new_if = ForthIf.new
+def eval_if(line, bad_on_empty)
+  new_if = ForthIf.new(bad_on_empty)
   line = new_if.read_line(line)
   eval_word_list(new_if.eval(@stack))
   line
@@ -178,7 +177,7 @@ def eval_word_list(word_list)
   when '('
     eval_word_list(eval_comment(word_list))
   when 'if'
-    eval_word_list(eval_if(word_list))
+    eval_word_list(eval_if(word_list, true))
   else
     eval_word(w.downcase, false)
     eval_word_list(word_list) unless word_list.empty?
