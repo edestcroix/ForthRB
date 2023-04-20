@@ -163,70 +163,78 @@ class ForthInterpreter
 
   private
 
+  # Recursevely iterates over the line passed to it,
+  # evaluating the words as it goes. When encountering user
+  # defined words, calls eval_user_word. When encountering string
+  # or user word definition start characters, passes the rest of the list
+  # into the appropriate interpreters.
   def interpret_line(line)
     return if line.empty?
 
     word = line.shift.downcase
     if @user_words.key?(word.to_sym)
-      eval_user_word(@user_words[word.to_sym])
+      # eval_user_word consumes its input. Have to clone it.
+      eval_user_word(@user_words[word.to_sym].map(&:clone))
+      interpret_line(line) unless line.empty?
     else
-      case word
-      when '."'
-        # eval_string returns the line after the string,
-        # so continue the interpreter on this part.
-        interpret_line(eval_string(line)) unless line.empty?
-        return
-      when ':'
-        # TODO: Make interpret_word behave like eval_string,
-        # in that it returns the line after the word definition.
-        # (Don't really need to do this, but nice for consistency)
-        interpret_word(line)
-        return
-      else
-        eval_word(word, true)
-      end
+      dispatch(line, word)
     end
-    interpret_line(line) unless line.empty?
   end
 
-  def interpret_word(line)
-    # evaluate lines until the ":", at which
-    # point initialize a new word with the next
-    # element in the line as the key,
-    # then call the word interpreter on the
-    # rest of the line
-
-    if line[0].nil?
-      warn 'No word name given'
-      return
+  # figures out what to do with non-user defined words.
+  # (because user defined words are the easy ones)
+  def dispatch(line, word)
+    case word
+    when '."'
+      # eval_string returns the line after the string,
+      # so continue the interpreter on this part.
+      interpret_line(eval_string(line)) unless line.empty?
+    when ':'
+      interpret_line(interpret_word(line)) unless line.empty?
+    else
+      eval_word(word, true)
+      interpret_line(line) unless line.empty?
     end
+  end
+
+  # evaluate lines until the ":", at which point initialize a new word
+  # with the next element in the line as the key, then read every
+  # word until a ";" is found into the user_words hash.
+  def interpret_word(line)
     name = line[0].downcase.to_sym
-    if @stack.respond_to?(name) || @symbol_map.key?(name.to_sym)
+    # This blocks overwriting system keywords, while still allowing
+    # for user defined words to be overwritten.
+    if @stack.respond_to?(name) || @symbol_map.key?(name.to_sym) || name =~ /\d+/
       warn "Word already defined: #{name}"
+      [] # just return an empty array to stop the interpreter.
     else
       @user_words.store(name, [])
       read_word(line[1..], name)
     end
   end
 
-  def read_word(line, name)
-    # read words from stdin until a ';', storing
-    # each word in the user_words hash under 'name'
-    found = false
-    line.each do |word|
-      found = true if word == ';'
-      found ? (eval_word(word.downcase, true) if word != ';') : @user_words[name].push(word)
-    end
-    return if found
+  # TODO: Prevent certain words from being
+  # added to user defined words. In particular,
+  # don't allow word definition inside a word definition.
+  # Might also be good to have error checking
+  # while defining the word, not just when evaluating it. But
+  # that's less important.
 
-    # if no ; is found, read another from sdin
-    read_word($stdin.gets.split, name)
+  # read words from stdin until a ';', storing
+  # each word in the user_words hash under 'name'
+  def read_word(line, name)
+    read_word($stdin.gets.split, name) if line.empty?
+    word = line.shift
+    return line if word == ';'
+    return [] if word.nil?
+
+    @user_words[name].push(word)
+    read_word(line, name)
   end
 
+  # prints every word in the line until a " is found,
+  # then returns the rest of the line.
   def eval_string(line)
-    # everything on the line should be printed as-is
-    # until a " is found. if one isn't, error.
-    # everything after the " should be evaluated
     if line.include?('"')
       print line[0..line.index('"') - 1].join(' ')
       print ' '
@@ -237,6 +245,11 @@ class ForthInterpreter
     end
   end
 
+  # evaluate a word. If it's a number, push it to the stack,
+  # and print it. Otherwise, if it is a symbol in the symbol_map,
+  # call the corresponding method on the stack from the symbol_map.
+  # Otherwise, if it is a method on the stack, call it.
+  # If it is none of these, warn the user.
   def eval_word(word, print)
     if word =~ /\d+/
       print "#{word} " if print
@@ -250,6 +263,10 @@ class ForthInterpreter
     end
   end
 
+  # Iterate over the user defined word, evaluating each word
+  # in the list. Can evaluate strings currently.
+  # TODO: Once IFs and LOOPs are implemented,
+  # this will have to handle them somehow.
   def eval_user_word(word_list)
     return if word_list.empty?
 
