@@ -28,9 +28,10 @@ module Maths
     mathop(:*)
   end
 
-  # FIXME: Division by zero
   def div
     mathop(:/)
+  rescue ZeroDivisionError
+    0
   end
 
   def and
@@ -46,26 +47,12 @@ module Maths
   end
 end
 
-# FIXME: Should change Stack to
-# not inherit from Array, and instead use
-# an Array internally. This way, only
-# the public stack methods will be callable.
-# As it is now, any input keywords that
-# match an Array method will try to be called
-# on the stack and either fail or break things.
-
 # Implements Forth operations over top a Ruby array.
 class ForthStack < Array
   include Maths
 
   def initialize(*args)
     super(*args)
-  end
-
-  def mathop(opr)
-    op1 = pop
-    op2 = pop
-    push(op2.send(opr, op1)) unless check_nil([op1, op2])
   end
 
   def equal
@@ -139,6 +126,12 @@ class ForthStack < Array
   end
 
   private
+
+  def mathop(opr)
+    op1 = pop
+    op2 = pop
+    push(op2.send(opr, op1)) unless check_nil([op1, op2])
+  end
 
   # if any of the operands are nil, return true,
   # and put the ones that aren't back on the stack
