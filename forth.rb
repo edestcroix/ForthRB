@@ -171,7 +171,7 @@ class ForthInterpreter
   # or user word definition start characters, passes the rest of the list
   # into the appropriate interpreters.
   def interpret_line(line)
-    return if line.empty?
+    return if line.nil? || line.empty?
 
     word = line.shift.downcase
     if @user_words.key?(word.to_sym)
@@ -190,12 +190,12 @@ class ForthInterpreter
     when '."'
       # eval_string returns the line after the string,
       # so continue the interpreter on this part.
-      interpret_line(eval_string(line)) unless line.empty?
+      interpret_line(eval_string(line))
     when ':'
-      interpret_line(interpret_word(line)) unless line.empty?
+      interpret_line(interpret_word(line))
     else
       eval_word(word, true)
-      interpret_line(line) unless line.empty?
+      interpret_line(line)
     end
   end
 
@@ -203,12 +203,13 @@ class ForthInterpreter
   # with the next element in the line as the key, then read every
   # word until a ";" is found into the user_words hash.
   def interpret_word(line)
+    return warn 'Empty word definition' if line.empty?
+
     name = line[0].downcase.to_sym
     # This blocks overwriting system keywords, while still allowing
     # for user defined words to be overwritten.
     if @stack.respond_to?(name) || @symbol_map.key?(name.to_sym) || name =~ /\d+/
       warn "Word already defined: #{name}"
-      [] # just return an empty array to stop the interpreter.
     else
       @user_words.store(name, [])
       read_word(line[1..], name)
