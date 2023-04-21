@@ -9,6 +9,6 @@ require_relative 'main'
 source = if (filename = ARGV[0])
            Source.new(File.open(filename), alt_print: true)
          else
-           Source.new($stdin, '> ')
+           Source.new($stdin)
          end
 ForthInterpreter.new(source).interpret
