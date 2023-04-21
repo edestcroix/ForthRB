@@ -43,7 +43,7 @@ class ForthInterpreter
     @heap = ForthHeap.new
     @constants = {}
     @user_words = {}
-    @keywords = %w[cr drop dump dup emit invert over rot swap]
+    @keywords = %w[cr drop dump dup emit invert over rot swap ! @ variable constant allot cells]
     @symbol_map = { '+' => 'add', '-' => 'sub', '*' => 'mul', '/' => 'div',
                     '=' => 'equal', '.' => 'dot', '<' => 'lesser', '>' => 'greater' }
     @func_map = { '."' => proc { |x| eval_string(x) }, ':' => proc { |x| create_word(x) },
@@ -99,7 +99,7 @@ class ForthInterpreter
   def dispatch(word, line, bad_on_empty)
     if @func_map.key?((word = word.downcase))
       @func_map.fetch(word).call(line)
-    elsif %w[! @ variable constant].include?(word)
+    elsif %w[! @ variable constant allot cells].include?(word)
       eval_variable(word, line)
     elsif %w[do if begin].include?(word)
       eval_obj(Object.const_get("Forth#{word.capitalize}"), line, bad_on_empty)
@@ -110,12 +110,23 @@ class ForthInterpreter
   end
 
   def eval_variable(word, line)
-    variable(word) if %w[! @].include?(word)
-
     return define(line, proc { |w| @constants[w.to_sym] = @stack.pop }, 'constant') if word == 'constant'
-    return define(line, proc { |w| @heap.alloc(w) }, 'variable') unless %w[! @].include?(word)
+    return define(line, proc { |w| @heap.create(w) }, 'variable') unless %w[! @ allot cells].include?(word)
+
+    variable(word) if %w[! @].include?(word)
+    allot(word) if %w[allot cells].include?(word)
 
     line
+  end
+
+  def allot(word)
+    # CELLS is supposed to mutiply the top of stack by
+    # the cell width, but in this implementation it is always 1,
+    # which is the same as just skipping CELLS words.
+    return if word == 'cells'
+    return warn STACK_UNDERFLOW unless (v1 = @stack.pop)
+
+    @heap.allot(v1) if word == 'allot'
   end
 
   def variable(word)
@@ -160,8 +171,7 @@ class ForthInterpreter
     name = line[0].downcase.to_sym
     # This blocks overwriting system keywords, while still allowing
     # for user defined words to be overwritten.
-    # TODO: Fully account for all disallowed words.
-    if @keywords.include?(name) || @symbol_map.key?(name.to_sym) || name =~ /\d+/
+    if system?(name) && !@user_words.key?(name)
       warn "#{BAD_DEF} Word already defined: #{name}"
     else
       @user_words.store(name, [])

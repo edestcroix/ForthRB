@@ -149,10 +149,14 @@ class ForthHeap
     @free = 0
   end
 
-  def alloc(name, size: 1)
+  def create(name)
+    @free += 1
+    @name_map[name] = @free + 1000 - 1
+    @free + 1000 - 1
+  end
+
+  def allot(size)
     @free += size
-    @name_map[name] = @free + 1000 - size
-    @free + 1000 - size
   end
 
   def get_address(name)

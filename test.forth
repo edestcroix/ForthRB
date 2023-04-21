@@ -18,3 +18,15 @@ IF DUP 1 - fac *
 ELSE DROP 1 THEN
 ;
 5 fac .
+( Testing Variables )
+: ? @ . ;
+
+VARIABLE numbers 3 CELLS ALLOT
+( array of size 4 )
+10 numbers 0 CELLS + !
+20 numbers 1 CELLS + !
+30 numbers 2 CELLS + !
+40 numbers 3 CELLS + !
+2 CELLS numbers + ?
+3 CONSTANT third
+third CELLS numbers + ?
