@@ -5,11 +5,11 @@ A (work in progress) Forth interpreter written in Ruby.
 - All standard keywords (`DUMP`, `DROP`, `INVERT`, `ROT`, etc.)
 - `( Comments )` and `." strings "`
 - Word definitions with `:` and `;`
-- `IF ELSE THEN` blocks
-- `DO LOOP` blocks
+- `IF ... ELSE ... THEN` blocks
+- `DO ... LOOP` blocks
+- `BEGIN ... UNTIL` blocks
 
 ## To Be Implemented
-- `BEGIN` loops.
 - Variables.
 - Better error handling and syntax checking.
 
@@ -24,9 +24,5 @@ For example:
     : fac DUP 1 > IF DUP 1 - fac * ELSE DROP 1 THEN ;
     5 fac .
     120 ok
-
-
-Also, any forms of nested IF and DO statements should theoretically work,
-but this hasn't been tested yet.
 
 The code is also a complete mess. Probably going to redo some of it. Maybe.
