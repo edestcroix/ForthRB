@@ -32,30 +32,60 @@ require_relative 'forth_methods'
 def interpret
   print '> '
   $stdin.each_line do |line|
-    %W[quit\n exit\n].include?(line) ? exit(0) : interpret_line(line.split)
+    %W[quit\n exit\n].include?(line) ? exit(0) : interpret_line(line.split, false)
     puts 'ok'
     print '> '
   end
 end
 
-# Interprets a line of Forth code.
-def interpret_line(line)
-  return if line.nil? || line.empty?
+# Interprets a line of Forth code. line is an array of words.
+# bad_on_empty determines whether parsers should warn if they find an empty line,
+# or keep reading from stdin until the reach their terminating words.
+def interpret_line(line, bad_on_empty)
+  return if invalid_line?(line)
 
-  word = line.shift.downcase
-  if @user_words.key?(word.to_sym)
+  if (w = line.shift).is_a?(ForthDo) || w.is_a?(ForthIf)
+    line = w.eval(@stack).dup
+    bad_on_empty = true
+  elsif @user_words.key?(w.downcase.to_sym)
     # eval_user_word consumes its input. Have to clone it.
-    eval_word_list(@user_words[word.to_sym].map(&:clone))
-    interpret_line(line) unless line.empty?
+    interpret_line(@user_words[w.downcase.to_sym].dup, true)
   else
-    dispatch(proc { |x| interpret_line(x) }, word, line, false)
+    line = dispatch(w, line, bad_on_empty)
+  end
+  interpret_line(line, bad_on_empty)
+end
+
+# putting this here instead of just having in interpret_line directly
+# stopped rufocop from having a hissy fit for ABC complexity so I've left it.
+def invalid_line?(line)
+  line.nil? || line.empty?
+end
+
+# Calls the appropriate function based on the word.
+# Calls func on the rest of the line after the word has been evaluated.
+def dispatch(word, line, bad_on_empty)
+  case word.downcase
+  when '."'
+    eval_string(line)
+  when ':'
+    create_word(line)
+  when '('
+    eval_comment(line)
+  when 'do'
+    eval_obj(ForthDo, line, bad_on_empty)
+  when 'if'
+    eval_obj(ForthIf, line, bad_on_empty)
+  else
+    eval_word(word.downcase)
+    line
   end
 end
 
 def eval_obj(obj, line, bad_on_empty)
   new_obj = obj.new(bad_on_empty)
   line = new_obj.read_line(line)
-  eval_word_list(new_obj.eval(@stack))
+  interpret_line(new_obj.eval(@stack), bad_on_empty)
   line
 end
 
@@ -139,51 +169,4 @@ def valid_word(word)
   return false unless @keywords.include?(word)
 
   true
-end
-
-# Iterate over the user defined word, evaluating each word
-# in the list. Can evaluate strings currently.
-def eval_word_list(word_list)
-  return if word_list.nil? || word_list.empty?
-
-  w = word_list.shift
-  # yes, I made a weird function just so I could make this a one liner.
-  return eval_obj_and_cont(w, proc { eval_word_list(word_list) }) if w.is_a?(ForthIf)
-  return eval_obj_and_cont(w, proc { eval_word_list(word_list) }) if w.is_a?(ForthDo)
-
-  top = @stack.pop
-  @stack.push(top) unless top.nil?
-
-  if @user_words.key?(w.downcase.to_sym)
-    # eval_user_word consumes its input. Have to clone it.
-    eval_word_list(@user_words[w.downcase.to_sym].map(&:clone))
-    return eval_word_list(word_list) unless word_list.empty?
-  end
-
-  dispatch(proc { |x| eval_word_list(x) }, w, word_list, true)
-end
-
-# Calls the appropriate function based on the word.
-# Calls func on the rest of the line after the word has been evaluated.
-def dispatch(func, word, line, bad_on_empty)
-  case word.downcase
-  when '."'
-    func.call(eval_string(line))
-  when ':'
-    func.call(create_word(line))
-  when '('
-    func.call(eval_comment(line))
-  when 'do'
-    func.call(eval_obj(ForthDo, line, bad_on_empty))
-  when 'if'
-    func.call(eval_obj(ForthIf, line, bad_on_empty))
-  else
-    eval_word(word.downcase)
-    func.call(line)
-  end
-end
-
-def eval_obj_and_cont(obj, continute_func)
-  eval_word_list(obj.eval(@stack).map(&:clone))
-  continute_func.call
 end
