@@ -98,10 +98,10 @@ class ForthInterpreter
   def dispatch(word, line, bad_on_empty)
     if @func_map.key?((word = word.downcase))
       @func_map.fetch(word).call(line)
-    elsif %w[do if].include?(word)
+    elsif %w[do if begin].include?(word)
       eval_obj(Object.const_get("Forth#{word.capitalize}"), line, bad_on_empty)
     else
-      eval_word(word.downcase)
+      eval_word(word)
       line
     end
   end

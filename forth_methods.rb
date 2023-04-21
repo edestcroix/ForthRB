@@ -278,3 +278,30 @@ class ForthDo < ForthObj
     end
   end
 end
+
+# Implements a BEGIN loop. Reads into the block until an UNTIL is found.
+# Evaluates by repeatedy popping a value off the stack and evaluating
+# its block until the value is non-zero.
+class ForthBegin < ForthObj
+  def initialize(source, bad_on_empty)
+    super(source, bad_on_empty)
+    @block = []
+  end
+
+  def read_line(line)
+    read_until(line, @block, 'until')
+  end
+
+  def eval(interpreter)
+    return warn "#{SYNTAX} 'BEGIN' without closing 'UNTIL'" unless @good
+
+    top = interpreter.stack.pop
+    return warn STACK_UNDERFLOW if top.nil?
+
+    while top.zero?
+      interpreter.interpret_line(@block.dup, true)
+      top = interpreter.stack.pop
+      return warn STACK_UNDERFLOW if top.nil?
+    end
+  end
+end
