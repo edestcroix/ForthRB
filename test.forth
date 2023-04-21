@@ -18,4 +18,3 @@ IF DUP 1 - fac *
 ELSE DROP 1 THEN
 ;
 5 fac .
-5 fac .
