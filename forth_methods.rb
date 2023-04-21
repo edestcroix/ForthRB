@@ -207,7 +207,7 @@ class ForthIf < ForthObj
 
     top = interpreter.stack.pop
     return warn STACK_UNDERFLOW if top.nil?
-    return @false_block.dup if top.zero?
+    return interpreter.interpret_line(@false_block.dup, true) if top.zero?
 
     interpreter.interpret_line(@true_block.dup, true)
   end
