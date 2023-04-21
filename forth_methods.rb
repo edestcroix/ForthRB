@@ -229,7 +229,7 @@ end
 # for the loop. (End non-inclusive) From this it builds the sequence
 # of blocks needed to execute the loop. For each iteration, it duplicates
 # the base block, and replaces any I in the block with the current iteration value.
-class ForthDoLoop
+class ForthDo
   include ForthMethods
   def initialize(bad_on_empty)
     @block = []
@@ -258,7 +258,7 @@ class ForthDoLoop
     # for each interation, duplicate the block
     # one, and replace any I with the current loop iteration
     (start..limit - 1).each do |i|
-      next_block = @block.dup.map { |w| w.downcase == 'i' ? i.to_s : w }
+      next_block = @block.dup.map { |w| w.is_a?(String) && w.downcase == 'i' ? i.to_s : w }
       block += next_block
     end
     block

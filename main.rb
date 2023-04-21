@@ -168,7 +168,8 @@ def eval_word_list(word_list)
 
   w = word_list.shift
   # yes, I made a weird function just so I could make this a one liner.
-  return eval_if_and_cont(w, proc { eval_word_list(word_list) }) if w.is_a?(ForthIf)
+  return eval_obj_and_cont(w, proc { eval_word_list(word_list) }) if w.is_a?(ForthIf)
+  return eval_obj_and_cont(w, proc { eval_word_list(word_list) }) if w.is_a?(ForthDo)
 
   top = @stack.pop
   @stack.push(top) unless top.nil?
@@ -179,22 +180,30 @@ def eval_word_list(word_list)
     return eval_word_list(word_list) unless word_list.empty?
   end
 
-  case w.downcase
+  dispatch(proc { |x| eval_word_list(x) }, w, word_list, true)
+end
+
+# Calls the appropriate function based on the word.
+# Calls func on the rest of the line after the word has been evaluated.
+def dispatch(func, word, line, bad_on_empty)
+  case word.downcase
   when '."'
-    eval_word_list(eval_string(word_list))
+    func.call(eval_string(line))
+  when ':'
+    func.call(create_word(line))
   when '('
-    eval_word_list(eval_comment(word_list))
-  when 'if'
-    eval_word_list(eval_obj(ForthIf, word_list, true))
+    func.call(eval_comment(line))
   when 'do'
-    eval_word_list(eval_obj(ForthDoLoop, word_list, true))
+    func.call(eval_obj(ForthDo, line, bad_on_empty))
+  when 'if'
+    func.call(eval_obj(ForthIf, line, bad_on_empty))
   else
-    eval_word(w.downcase)
-    eval_word_list(word_list) unless word_list.empty?
+    eval_word(word.downcase)
+    func.call(line)
   end
 end
 
-def eval_if_and_cont(if_obj, continute_func)
-  eval_word_list(if_obj.eval(@stack).map(&:clone))
+def eval_obj_and_cont(obj, continute_func)
+  eval_word_list(obj.eval(@stack).map(&:clone))
   continute_func.call
 end
