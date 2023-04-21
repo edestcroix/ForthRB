@@ -3,25 +3,31 @@
 require_relative 'forth_methods'
 
 # TODO: Add comments
-# - Only print newlines in output when neccessary.
 # - Check that AND OR, and XOR do what they're supposed to.
-# - Loop parser (Do as a class?)
-
-# NOTE: Idea for IF and LOOP
-# When the IF/LOOP keywords are found, enter their
-# parsers like for the words and strings, but store them into a class.
-# Once the IF/LOOP is parsed, it is returned, and then
-# call the newly created classes eval() method and pass it the stack as an argument.
-# Then the classes can figure out what to evaluate. This shouldn't be too hard for regular parsing,
-# but when evaluating a user word it might get tricky. Either save the raw IF/LOOP in the word,
-# or build the classes during parsing and store them in the word, and have special cases for evaluating them.
-# If done with the latter, could store strings as classes too.
+# - BEGIN loop.
+# - Figure out better code layout, because right now some of this is CRAP.
+#   What I might want to do is create a class
+#   for each word type, and have them all have
+#   an eval method that takes in the stack and evals
+#   itself. Then the parser just converts strings into objects
+#   and calls eval on them. Then if it finds a if, etc
+#   key word, it will read whatever is needed and create
+#   an if class or whatever and store it in the list
 
 @stack = ForthStack.new
 @user_words = {}
 @keywords = %w[cr drop dump dup emit invert over rot swap]
 @symbol_map = { '+' => 'add', '-' => 'sub', '*' => 'mul', '/' => 'div',
                 '=' => 'equal', '.' => 'dot', '<' => 'lesser', '>' => 'greater' }
+
+# starting here, a line is read in from stdin. From this point, various recursive calls
+# are made to parse the line and evaluate it. The main function, interpret_line,
+# recursively iterates over the input line, and in the basic case just calls eval_word
+# to perform a simple action on the stack. If it is something more complicated like a
+# comment or string, it calls another method, which reads the line the same way as
+# interpret_line, but performs different actions. When these functions find the word
+# that terminates the block they are reading, they return whatever is after back out,
+# and another recursive interpret_line call is made on whatever comes after.
 
 def interpret
   print '> '
@@ -42,33 +48,7 @@ def interpret_line(line)
     eval_word_list(@user_words[word.to_sym].map(&:clone))
     interpret_line(line) unless line.empty?
   else
-    dispatch(line, word)
-  end
-end
-
-# figures out what to do with non-user defined words.
-# (because user defined words are the easy ones)
-# All methods other than eval_word take in the line
-# that starts after their associated keyword and returns
-# whatever is left on the line after their domain ends.
-# (E.g, if a : is encountered, call create_word on the
-# line after the :, it will continue parsing the word definition
-# until it finds a ;, then return anything after the ;. )
-def dispatch(line, word)
-  case word
-  when '."'
-    interpret_line(eval_string(line))
-  when ':'
-    interpret_line(create_word(line))
-  when '('
-    interpret_line(eval_comment(line))
-  when 'do'
-    interpret_line(eval_obj(ForthDoLoop, line, false))
-  when 'if'
-    interpret_line(eval_obj(ForthIf, line, false))
-  else
-    eval_word(word)
-    interpret_line(line)
+    dispatch(proc { |x| interpret_line(x) }, word, line, false)
   end
 end
 
