@@ -35,7 +35,7 @@ end
 # from the source definied on creation. interpret_line takes
 # an array of words and evaluates them on the stack.
 class ForthInterpreter
-  attr_reader :stack, :user_words
+  attr_reader :stack
 
   def initialize(source)
     @source = source
