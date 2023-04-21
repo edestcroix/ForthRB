@@ -13,6 +13,11 @@ A (work in progress) Forth interpreter written in Ruby.
 - Variables.
 - Better error handling and syntax checking.
 
+## Running
+The interpreter can be started by calling `./forth` with no arguments.  
+When given an argument, it is assumed to be a filename and the interpreter
+will be run on the input file.
+
 ## Notes
 The interpreter does not do any syntax checking during word definitions,
 or inside IF statements. This is deferred until they are evaluated. This
