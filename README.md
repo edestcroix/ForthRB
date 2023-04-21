@@ -14,7 +14,7 @@ A (work in progress) Forth interpreter written in Ruby.
 
 ## Notes
 The interpreter does not do any syntax checking during word definitions,
-or inside IF statements. This is differed until they are evaluated. This
+or inside IF statements. This is deferred until they are evaluated. This
 allows for recursive word definitions, as the interpreter will not fail
 on unknown words inside a word definition.  
 
