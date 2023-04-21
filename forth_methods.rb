@@ -79,7 +79,7 @@ class ForthStack < Array
   def greater
     op1 = pop
     op2 = pop
-    (push op2 < op1 ? -1 : 0) unless check_nil([op1, op2])
+    (push op2 > op1 ? -1 : 0) unless check_nil([op1, op2])
   end
 
   def invert
