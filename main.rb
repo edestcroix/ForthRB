@@ -2,8 +2,7 @@
 
 require_relative 'forth_methods'
 
-# TODO: Add comments
-# - Check that AND OR, and XOR do what they're supposed to.
+# TODO: - Variables
 # - BEGIN loop.
 # - Figure out better code layout, because right now some of this is CRAP.
 #   What I might want to do is create a class
@@ -140,11 +139,10 @@ def eval_comment(line)
   line[line.index(')') + 1..]
 end
 
-# evaluate a word. If it's a number, push it to the stack,
-# and print it. Otherwise, if it is a symbol in the symbol_map,
-# call the corresponding method on the stack from the symbol_map.
-# Otherwise, if it is a method on the stack, call it.
-# If it is none of these, warn the user.
+# Evaluates basic Forth words. (I.e the default single word operators,
+# not strings, IF's, word defs, etc.) Pushes numbers onto the stack, evals
+# the word on the stack if the word is present in either the symbol_map or
+# in the keywords list. Otherwise sends the appropriate error message.
 def eval_word(word)
   if word.to_i.to_s == word
     @stack.push(word.to_i)

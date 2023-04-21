@@ -164,6 +164,8 @@ class ForthObj
     line
   end
 
+  private
+
   def read_until(line, block, end_word)
     if @bad_on_empty && line.empty?
       @good = false
