@@ -62,18 +62,20 @@ def dispatch(line, word)
     interpret_line(create_word(line))
   when '('
     interpret_line(eval_comment(line))
+  when 'do'
+    interpret_line(eval_obj(ForthDoLoop, line, false))
   when 'if'
-    interpret_line(eval_if(line, false))
+    interpret_line(eval_obj(ForthIf, line, false))
   else
     eval_word(word)
     interpret_line(line)
   end
 end
 
-def eval_if(line, bad_on_empty)
-  new_if = ForthIf.new(bad_on_empty)
-  line = new_if.read_line(line)
-  eval_word_list(new_if.eval(@stack))
+def eval_obj(obj, line, bad_on_empty)
+  new_obj = obj.new(bad_on_empty)
+  line = new_obj.read_line(line)
+  eval_word_list(new_obj.eval(@stack))
   line
 end
 
@@ -161,14 +163,15 @@ end
 
 # Iterate over the user defined word, evaluating each word
 # in the list. Can evaluate strings currently.
-# TODO: Once LOOPs are implemented,
-# this will have to handle them somehow.
 def eval_word_list(word_list)
   return if word_list.nil? || word_list.empty?
 
   w = word_list.shift
   # yes, I made a weird function just so I could make this a one liner.
   return eval_if_and_cont(w, proc { eval_word_list(word_list) }) if w.is_a?(ForthIf)
+
+  top = @stack.pop
+  @stack.push(top) unless top.nil?
 
   if @user_words.key?(w.downcase.to_sym)
     # eval_user_word consumes its input. Have to clone it.
@@ -182,7 +185,9 @@ def eval_word_list(word_list)
   when '('
     eval_word_list(eval_comment(word_list))
   when 'if'
-    eval_word_list(eval_if(word_list, true))
+    eval_word_list(eval_obj(ForthIf, word_list, true))
+  when 'do'
+    eval_word_list(eval_obj(ForthDoLoop, word_list, true))
   else
     eval_word(w.downcase)
     eval_word_list(word_list) unless word_list.empty?

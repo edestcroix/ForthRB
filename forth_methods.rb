@@ -133,6 +133,36 @@ class ForthStack < Array
   end
 end
 
+# Contains methods that are used by both ForthIf and ForthDoLoop,
+# and the future ForthBeginLoop once it's implemented.
+module ForthMethods
+  def add_to_block(block, word, line)
+    begin
+      new_word = Object.const_get("Forth#{word.capitalize}").new(@bad_on_empty)
+      line = new_word.read_line(line)
+      block << new_word
+    rescue NameError
+      block << word
+    end
+    line
+  end
+
+  def read_until(line, block, end_word)
+    if @bad_on_empty && line.empty?
+      @good = false
+      return []
+    end
+    return read_until($stdin.gets.split, block, end_word) if line.empty?
+
+    word = line.shift
+    return [] if word.nil?
+
+    return line if word.downcase == end_word
+
+    read_until(add_to_block(block, word, line), block, end_word)
+  end
+end
+
 # Holds a forth IF statement. Calling read_line will start parsing
 # the IF statement starting with the line given. Reads into
 # the true_block until an ELSE or THEN is found, then reads into
@@ -141,6 +171,7 @@ end
 # and starts it parsing on the rest of the line, resuming it's
 # own parsing where that IF left off.
 class ForthIf
+  include ForthMethods
   # takes in fail_on_empty, which tells the IF what to
   # do if it encounters an empty line. If it's true,
   # it sets @good to false. If it's false, it will keep
@@ -151,11 +182,6 @@ class ForthIf
     @good = true
     @bad_on_empty = bad_on_empty
   end
-
-  # NOTE: Does it need to parse loops? Two ways to do this:
-  # 1 - Have the IF create LOOP objects when loops are found.
-  # 2 - Completely ignore them, and have them be constructed
-  # during evaluation of the IF block.
 
   def eval(stack)
     # If the IF is not good (there wasn't an ending THEN) warn and do nothing.
@@ -192,34 +218,49 @@ class ForthIf
     return [] if word.nil?
 
     return line if word.downcase == 'then'
-    return read_false(line) if word.downcase == 'else'
+    return read_until(line, @false_block, 'then') if word.downcase == 'else'
 
     read_true(add_to_block(@true_block, word, line))
   end
+end
 
-  def read_false(line)
-    if @bad_on_empty && line.empty?
-      @good = false
-      return []
-    end
-    return read_false($stdin.gets.split) if line.empty?
-
-    word = line.shift
-    return [] if word.nil?
-
-    return line if word.downcase == 'then'
-
-    read_false(add_to_block(@false_block, word, line))
+# Implements a DO loop. Reads into the block until a LOOP is found.
+# On calling eval it pops two values off the stack: the start and end values
+# for the loop. (End non-inclusive) From this it builds the sequence
+# of blocks needed to execute the loop. For each iteration, it duplicates
+# the base block, and replaces any I in the block with the current iteration value.
+class ForthDoLoop
+  include ForthMethods
+  def initialize(bad_on_empty)
+    @block = []
+    @good = true
+    @bad_on_empty = bad_on_empty
   end
 
-  def add_to_block(block, word, line)
-    if word.downcase == 'if'
-      new_if = ForthIf.new(@bad_on_empty)
-      line = new_if.read_line(line)
-      block << new_if
-    else
-      block << word
+  def read_line(line)
+    read_until(line, @block, 'loop')
+  end
+
+  def eval(stack)
+    return warn 'Missing ending LOOP' unless @good
+
+    start = stack.pop
+    limit = stack.pop
+    return warn 'Stack underflow' if start.nil? || limit.nil?
+    return warn 'Invalid loop range' if start.negative? || limit.negative?
+    return warn 'Invalid loop range' if start > limit
+
+    do_loop(start, limit)
+  end
+
+  def do_loop(start, limit)
+    block = []
+    # for each interation, duplicate the block
+    # one, and replace any I with the current loop iteration
+    (start..limit - 1).each do |i|
+      next_block = @block.dup.map { |w| w.downcase == 'i' ? i.to_s : w }
+      block += next_block
     end
-    line
+    block
   end
 end
