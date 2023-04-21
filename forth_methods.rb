@@ -207,10 +207,8 @@ class ForthObj
 
   private
 
-  # this is quite nifty, if the word is if or do, it will be replaced with ForthIf or
-  # ForthDo. This way, nested IF's and DO's can be supported, and can error check properly.
-  # Waiting to build the new object until after parsing doesn't work, because the outermost IF
-  # or DO will eat the closing word of the innermost IF or DO and fail.
+  # adds words into a block of the class. If the word the beginning of an
+  # IF, DO, or BEGIN it puts in the corresponding object instead.
   def add_to_block(block, word, line)
     begin
       new_word = Object.const_get("Forth#{word.capitalize}").new(@source, @bad_on_empty)

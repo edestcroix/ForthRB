@@ -2,8 +2,6 @@
 
 require_relative 'forth_methods'
 
-# TODO: - Variables (ALLOT and CELLS)
-
 # Source is a wrapper around the input source, so that
 # the interpreter can get its input from an abstracted
 # interface. This allows it to read from a file or stdin,
@@ -28,6 +26,124 @@ class Source
   end
 end
 
+# Methods for the ForthInterpreter that handle word evaluation, other
+# than custom word definitions. Moved to a module so rufocop
+# would stop complaining about the class being too long.
+module ForthEvaluators
+  # maps the various types of words to their respective functions.
+  def func_map
+    { '."' => proc { |x| eval_string(x) },
+      ':' => proc { |x| create_word(x) },
+      '(' => proc { |x| eval_comment(x) } }
+  end
+
+  # same as func_map, but for variable and constant definitions.
+  def var_map
+    { '!' => proc { |x| eval_variable('!', x) },
+      '@' => proc { |x| eval_variable('@', x) },
+      'variable' => proc { |x| eval_variable('variable', x) },
+      'constant' => proc { |x| eval_variable('constant', x) },
+      'allot' => proc { |x| eval_variable('allot', x) },
+      'cells' => proc { |x| eval_variable('cells', x) } }
+  end
+
+  # evaluates variable and constant definitions, as well as variable access and allotment.
+  def eval_variable(word, line)
+    return define(line, proc { |w| @constants[w.to_sym] = @stack.pop }, 'constant') if word == 'constant'
+    return define(line, proc { |w| @heap.create(w) }, 'variable') if word == 'variable'
+
+    if %w[! @].include?(word)
+      variable(word)
+    else
+      allot(word)
+    end
+    line
+  end
+
+  # prints every word in the line until a " is found,
+  # then returns the rest of the line.
+  def eval_string(line)
+    return warn "#{SYNTAX} No closing '\"' found" unless line.include?('"')
+
+    print line[0..line.index('"') - 1].join(' ')
+    print ' '
+    line[line.index('"') + 1..]
+  end
+
+  # returns the line after the first ) found.
+  def eval_comment(line)
+    return warn "#{SYNTAX} No closing ) found" unless line.include?(')')
+
+    line[line.index(')') + 1..]
+  end
+
+  # Evaluates basic Forth words. (I.e the default single word operators,
+  # not strings, IF's, word defs, etc.) Pushes numbers onto the stack, evals
+  # the word on the stack if the word is present in either the symbol_map or
+  # in the keywords list. Otherwise sends the appropriate error message.
+  def eval_word(word)
+    if word.to_i.to_s == word
+      @stack.push(word.to_i)
+    elsif @symbol_map.key?(word)
+      @stack.send(@symbol_map[word].to_sym)
+    elsif @heap.defined?(word)
+      @stack.push(@heap.get_address(word))
+    elsif @constants.key?(word.to_sym)
+      @stack.push(@constants[word.to_sym])
+    elsif valid_word(word)
+      @stack.send(word.to_sym)
+    end
+  end
+
+  private
+
+  # checks if the word is a valid word. This is done to make sure keywords that are Ruby array
+  # methods don't get called. (Before eval_word just tested for stack.respond_to?
+  # which caused problems) Only checks for specific keywords, because at this point
+  # it has already been checked for being a user word, or a number or symbol.
+  def valid_word(word)
+    return false if word.nil?
+    return warn "#{SYNTAX} ';' without opening ':'" if word == ';'
+    return warn "#{SYNTAX} 'LOOP' without opening 'DO'" if word == 'loop'
+    return warn "#{SYNTAX} '#{word.upcase}' without opening 'IF'" if %w[else then].include?(word)
+    return warn "#{BAD_WORD} Unknown word '#{word}'" unless @keywords.include?(word)
+
+    true
+  end
+
+  def variable(word)
+    return warn STACK_UNDERFLOW unless (v1 = @stack.pop)
+
+    if word == '!'
+      return warn STACK_UNDERFLOW unless (v2 = @stack.pop)
+
+      @heap.set(v1, v2)
+    elsif word == '@'
+      @stack << @heap.get(v1)
+    end
+  end
+
+  # Wrapper around common code for variable and constant definitions.
+  def define(line, def_func, id)
+    return warn "#{BAD_DEF} Empty #{id} definition" if line.empty?
+    return warn "#{BAD_DEF} #{id.capitalize} names cannot be numbers" if (word = line[0]).to_i.to_s == word
+    return warn "#{BAD_DEF} Cannot overrite existing words" if system?(word)
+
+    def_func.call(word.downcase)
+    line[1..]
+  end
+
+  def allot(word)
+    # CELLS is supposed to mutiply the top of stack by
+    # the cell width, but in this implementation it is always 1,
+    # which is the same as just skipping CELLS words.
+    return if word == 'cells'
+    return warn STACK_UNDERFLOW unless (v1 = @stack.pop)
+
+    @heap.allot(v1) if word == 'allot'
+  end
+end
+
 # Main interpreter class. Holds the stack, and the dictionary of
 # user defined words. The dictionary is a hash of words to arrays
 # of words. Two methods are public: interpret and interpret_line.
@@ -35,6 +151,7 @@ end
 # from the source definied on creation. interpret_line takes
 # an array of words and evaluates them on the stack.
 class ForthInterpreter
+  include ForthEvaluators
   attr_reader :stack
 
   def initialize(source)
@@ -43,11 +160,10 @@ class ForthInterpreter
     @heap = ForthHeap.new
     @constants = {}
     @user_words = {}
+    @func_map = func_map.merge(var_map)
     @keywords = %w[cr drop dump dup emit invert over rot swap ! @ variable constant allot cells]
     @symbol_map = { '+' => 'add', '-' => 'sub', '*' => 'mul', '/' => 'div',
                     '=' => 'equal', '.' => 'dot', '<' => 'lesser', '>' => 'greater' }
-    @func_map = { '."' => proc { |x| eval_string(x) }, ':' => proc { |x| create_word(x) },
-                  '(' => proc { |x| eval_comment(x) } }
   end
 
   # starting here, a line is read in from stdin. From this point, various recursive calls
@@ -95,59 +211,15 @@ class ForthInterpreter
   end
 
   # Calls the appropriate function based on the word.
-  # Calls func on the rest of the line after the word has been evaluated.
   def dispatch(word, line, bad_on_empty)
     if @func_map.key?((word = word.downcase))
       @func_map.fetch(word).call(line)
-    elsif %w[! @ variable constant allot cells].include?(word)
-      eval_variable(word, line)
     elsif %w[do if begin].include?(word)
       eval_obj(Object.const_get("Forth#{word.capitalize}"), line, bad_on_empty)
     else
       eval_word(word)
       line
     end
-  end
-
-  def eval_variable(word, line)
-    return define(line, proc { |w| @constants[w.to_sym] = @stack.pop }, 'constant') if word == 'constant'
-    return define(line, proc { |w| @heap.create(w) }, 'variable') unless %w[! @ allot cells].include?(word)
-
-    variable(word) if %w[! @].include?(word)
-    allot(word) if %w[allot cells].include?(word)
-
-    line
-  end
-
-  def allot(word)
-    # CELLS is supposed to mutiply the top of stack by
-    # the cell width, but in this implementation it is always 1,
-    # which is the same as just skipping CELLS words.
-    return if word == 'cells'
-    return warn STACK_UNDERFLOW unless (v1 = @stack.pop)
-
-    @heap.allot(v1) if word == 'allot'
-  end
-
-  def variable(word)
-    return warn STACK_UNDERFLOW unless (v1 = @stack.pop)
-
-    if word == '!'
-      return warn STACK_UNDERFLOW unless (v2 = @stack.pop)
-
-      @heap.set(v1, v2)
-    elsif word == '@'
-      @stack << @heap.get(v1)
-    end
-  end
-
-  def define(line, def_func, id)
-    return warn "#{BAD_DEF} Empty #{id} definition" if line.empty?
-    return warn "#{BAD_DEF} #{id.capitalize} names cannot be numbers" if (word = line[0]).to_i.to_s == word
-    return warn "#{BAD_DEF} Cannot overrite existing words" if system?(word)
-
-    def_func.call(word.downcase)
-    line[1..]
   end
 
   def system?(word)
@@ -189,53 +261,5 @@ class ForthInterpreter
 
     @user_words[name].push(word)
     read_word(line, name)
-  end
-
-  # prints every word in the line until a " is found,
-  # then returns the rest of the line.
-  def eval_string(line)
-    return warn "#{SYNTAX} No closing '\"' found" unless line.include?('"')
-
-    print line[0..line.index('"') - 1].join(' ')
-    print ' '
-    line[line.index('"') + 1..]
-  end
-
-  def eval_comment(line)
-    return warn "#{SYNTAX} No closing ) found" unless line.include?(')')
-
-    line[line.index(')') + 1..]
-  end
-
-  # Evaluates basic Forth words. (I.e the default single word operators,
-  # not strings, IF's, word defs, etc.) Pushes numbers onto the stack, evals
-  # the word on the stack if the word is present in either the symbol_map or
-  # in the keywords list. Otherwise sends the appropriate error message.
-  def eval_word(word)
-    if word.to_i.to_s == word
-      @stack.push(word.to_i)
-    elsif @symbol_map.key?(word)
-      @stack.send(@symbol_map[word].to_sym)
-    elsif @heap.defined?(word)
-      @stack.push(@heap.get_address(word))
-    elsif @constants.key?(word.to_sym)
-      @stack.push(@constants[word.to_sym])
-    elsif valid_word(word)
-      @stack.send(word.to_sym)
-    end
-  end
-
-  # checks if the word is a valid word. This is done to make sure keywords that are Ruby array
-  # methods don't get called. (Before eval_word just tested for stack.respond_to?
-  # which caused problems) Only checks for specific keywords, because at this point
-  # it has already been checked for being a user word, or a number or symbol.
-  def valid_word(word)
-    return false if word.nil?
-    return warn "#{SYNTAX} ';' without opening ':'" if word == ';'
-    return warn "#{SYNTAX} 'LOOP' without opening 'DO'" if word == 'loop'
-    return warn "#{SYNTAX} '#{word.upcase}' without opening 'IF'" if %w[else then].include?(word)
-    return warn "#{BAD_WORD} Unknown word '#{word}'" unless @keywords.include?(word)
-
-    true
   end
 end
