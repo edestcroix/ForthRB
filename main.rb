@@ -47,6 +47,9 @@ class ForthInterpreter
     @keywords = %w[cr drop dump dup emit invert over rot swap]
     @symbol_map = { '+' => 'add', '-' => 'sub', '*' => 'mul', '/' => 'div',
                     '=' => 'equal', '.' => 'dot', '<' => 'lesser', '>' => 'greater' }
+    @func_map = { '."' => proc { |x| eval_string(x) },
+                  ':' => proc { |x| create_word(x) },
+                  '(' => proc { |x| eval_comment(x) } }
   end
 
   # starting here, a line is read in from stdin. From this point, various recursive calls
@@ -93,17 +96,10 @@ class ForthInterpreter
   # Calls the appropriate function based on the word.
   # Calls func on the rest of the line after the word has been evaluated.
   def dispatch(word, line, bad_on_empty)
-    case word.downcase
-    when '."'
-      eval_string(line)
-    when ':'
-      create_word(line)
-    when '('
-      eval_comment(line)
-    when 'do'
-      eval_obj(ForthDo, line, bad_on_empty)
-    when 'if'
-      eval_obj(ForthIf, line, bad_on_empty)
+    if @func_map.key?((word = word.downcase))
+      @func_map.fetch(word).call(line)
+    elsif %w[do if].include?(word)
+      eval_obj(Object.const_get("Forth#{word.capitalize}"), line, bad_on_empty)
     else
       eval_word(word.downcase)
       line
@@ -130,8 +126,8 @@ class ForthInterpreter
     if @keywords.include?(name) || @symbol_map.key?(name.to_sym) || name =~ /\d+/
       warn "#{BAD_DEF} Word already defined: #{name}"
     else
-      @user_words.store(name, [])
-      read_word(line[1..], name)
+      @user_words.store(name, (block = []))
+      ForthObj.new(@source, false).read_until(line[1..], block, ';')
     end
   end
 
@@ -141,7 +137,7 @@ class ForthInterpreter
   # Might also be good to have error checking
   # while defining the word, not just when evaluating it. But
   # that's less important.
-  
+
   # read words from stdin until a ';', storing
   # each word in the user_words hash under 'name'
   def read_word(line, name)
