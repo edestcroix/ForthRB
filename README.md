@@ -6,9 +6,10 @@ A (work in progress) Forth interpreter written in Ruby.
 - `( Comments )` and `." strings "`
 - Word definitions with `:` and `;`
 - `IF ELSE THEN` blocks
+- `DO LOOP` blocks
 
 ## To Be Implemented
-- Both loop types ( `BEGIN` and `DO` )
+- `BEGIN` loops.
 - Variables.
 - Better error handling and syntax checking.
 
