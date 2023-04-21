@@ -126,9 +126,21 @@ class ForthInterpreter
     if @keywords.include?(name) || @symbol_map.key?(name.to_sym) || name =~ /\d+/
       warn "#{BAD_DEF} Word already defined: #{name}"
     else
-      @user_words.store(name, (block = []))
-      ForthObj.new(@source, false).read_until(line[1..], block, ';')
+      @user_words.store(name, [])
+      read_word(line[1..], name)
     end
+  end
+
+  # read words from stdin until a ';', storing
+  # each word in the user_words hash under 'name'
+  def read_word(line, name)
+    read_word(@source.gets.split, name) if line.empty?
+    word = line.shift
+    return line if word == ';'
+    return [] if word.nil?
+
+    @user_words[name].push(word)
+    read_word(line, name)
   end
 
   # prints every word in the line until a " is found,
