@@ -193,5 +193,3 @@ def eval_if_and_cont(if_obj, continute_func)
   eval_word_list(if_obj.eval(@stack).map(&:clone))
   continute_func.call
 end
-
-interpret
