@@ -72,7 +72,7 @@ class ForthInterpreter
     return if invalid_line?(line)
 
     if (w = line.shift).is_a?(ForthObj)
-      interpret_line(w.eval(self), true)
+      w.eval(self)
     elsif @user_words.key?(w.downcase.to_sym)
       # eval_user_word consumes its input. Have to clone it.
       interpret_line(@user_words[w.downcase.to_sym].dup, true)
@@ -113,7 +113,7 @@ class ForthInterpreter
   def eval_obj(obj, line, bad_on_empty)
     new_obj = obj.new(@source, bad_on_empty)
     line = new_obj.read_line(line)
-    interpret_line(new_obj.eval(self), bad_on_empty)
+    new_obj.eval(self)
     line
   end
 

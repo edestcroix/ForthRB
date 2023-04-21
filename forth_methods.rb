@@ -149,6 +149,23 @@ class ForthObj
     @bad_on_empty = bad_on_empty
   end
 
+  def read_until(line, block, end_word)
+    if @bad_on_empty && line.empty?
+      @good = false
+      return []
+    end
+    return read_until(@source.gets.split, block, end_word) if line.empty?
+
+    word = line.shift
+    return [] if word.nil?
+
+    return line if word.downcase == end_word
+
+    read_until(add_to_block(block, word, line), block, end_word)
+  end
+
+  private
+
   # this is quite nifty, if the word is if or do, it will be replaced with ForthIf or
   # ForthDo. This way, nested IF's and DO's can be supported, and can error check properly.
   # Waiting to build the new object until after parsing doesn't work, because the outermost IF
@@ -163,23 +180,6 @@ class ForthObj
       block << word
     end
     line
-  end
-
-  private
-
-  def read_until(line, block, end_word)
-    if @bad_on_empty && line.empty?
-      @good = false
-      return []
-    end
-    return read_until(@source.gets.split, block, end_word) if line.empty?
-
-    word = line.shift
-    return [] if word.nil?
-
-    return line if word.downcase == end_word
-
-    read_until(add_to_block(block, word, line), block, end_word)
   end
 end
 
@@ -209,7 +209,7 @@ class ForthIf < ForthObj
     return warn STACK_UNDERFLOW if top.nil?
     return @false_block.dup if top.zero?
 
-    @true_block.dup
+    interpreter.interpret_line(@true_block.dup, true)
   end
 
   def read_line(line)
@@ -266,17 +266,15 @@ class ForthDo < ForthObj
     return warn "#{BAD_LOOP} Invalid loop range" if start.negative? || limit.negative?
     return warn "#{BAD_LOOP} Invalid loop range" if start > limit
 
-    do_loop(start, limit)
+    do_loop(interpreter, start, limit)
   end
 
-  def do_loop(start, limit)
-    block = []
-    # for each interation, duplicate the block
-    # one, and replace any I with the current loop iteration
+  # for each iteration from start to limit, set I to the current value,
+  # and interpret the block using the interprer
+  def do_loop(interpreter, start, limit)
     (start..limit - 1).each do |i|
-      next_block = @block.dup.map { |w| w.is_a?(String) && w.downcase == 'i' ? i.to_s : w }
-      block += next_block
+      run_block = @block.dup.map { |w| w.is_a?(String) && w.downcase == 'i' ? i.to_s : w }
+      interpreter.interpret_line(run_block, true)
     end
-    block
   end
 end
