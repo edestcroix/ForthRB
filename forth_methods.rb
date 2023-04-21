@@ -204,9 +204,9 @@ class ForthIf < ForthObj
 
     top = stack.pop
     return warn STACK_UNDERFLOW if top.nil?
-    return @false_block if top.zero?
+    return @false_block.dup if top.zero?
 
-    @true_block
+    @true_block.dup
   end
 
   def read_line(line)

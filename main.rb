@@ -20,7 +20,6 @@ require_relative 'forth_methods'
 @symbol_map = { '+' => 'add', '-' => 'sub', '*' => 'mul', '/' => 'div',
                 '=' => 'equal', '.' => 'dot', '<' => 'lesser', '>' => 'greater' }
 
-
 # starting here, a line is read in from stdin. From this point, various recursive calls
 # are made to parse the line and evaluate it. The main function, interpret_line,
 # recursively iterates over the input line, and in the basic case just calls eval_word
@@ -34,8 +33,7 @@ def interpret
   print '> '
   $stdin.each_line do |line|
     %W[quit\n exit\n].include?(line) ? exit(0) : interpret_line(line.split, false)
-    puts 'ok'
-    print '> '
+    print "ok\n> "
   end
 end
 
@@ -46,8 +44,7 @@ def interpret_line(line, bad_on_empty)
   return if invalid_line?(line)
 
   if (w = line.shift).is_a?(ForthObj)
-    line = w.eval(@stack).dup
-    bad_on_empty = true
+    interpret_line(w.eval(@stack), true)
   elsif @user_words.key?(w.downcase.to_sym)
     # eval_user_word consumes its input. Have to clone it.
     interpret_line(@user_words[w.downcase.to_sym].dup, true)
