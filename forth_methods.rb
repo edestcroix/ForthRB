@@ -5,6 +5,7 @@ BAD_TYPE = '[BAD_TYPE]'
 BAD_DEF =  '[BAD_DEF]'
 BAD_WORD = '[BAD_WORD]'
 BAD_LOOP = '[BAD_LOOP]'
+BAD_ADDRESS = '[BAD_ADDRESS]'
 STACK_UNDERFLOW = '[STACK_UNDERFLOW]'
 
 # Put this in a mixin for organization purposes.
@@ -137,6 +138,42 @@ class ForthStack < Array
       return true
     end
     false
+  end
+end
+
+# Implements a Heap for the ForthInterpreter to store variables in.
+class ForthHeap
+  def initialize
+    @heap = []
+    @name_map = {}
+    @free = 0
+  end
+
+  def alloc(name, size: 1)
+    @free += size
+    @name_map[name] = @free + 1000 - size
+    @free + 1000 - size
+  end
+
+  def get_address(name)
+    @name_map[name]
+  end
+
+  def defined?(name)
+    @name_map.key?(name)
+  end
+
+  def set(addr, value)
+    return warn "#{BAD_ADDRESS} #{addr}" if addr < 1000 || addr > 1000 + @free
+
+    @heap[addr - 1000] = value
+  end
+
+  def get(address)
+    return warn "#{BAD_ADDRESS} #{addr}" if address.nil?
+    return warn "#{BAD_ADDRESS} #{address}" if address < 1000 || address > 1000 + @free
+
+    @heap[address - 1000]
   end
 end
 

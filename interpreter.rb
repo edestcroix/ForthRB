@@ -2,16 +2,7 @@
 
 require_relative 'forth_methods'
 
-# TODO: - Variables
-# - BEGIN loop.
-# - Figure out better code layout, because right now some of this is CRAP.
-#   What I might want to do is create a class
-#   for each word type, and have them all have
-#   an eval method that takes in the stack and evals
-#   itself. Then the parser just converts strings into objects
-#   and calls eval on them. Then if it finds a if, etc
-#   key word, it will read whatever is needed and create
-#   an if class or whatever and store it in the list
+# TODO: - Variables (ALLOT and CELLS)
 
 # Source is a wrapper around the input source, so that
 # the interpreter can get its input from an abstracted
@@ -43,12 +34,13 @@ class ForthInterpreter
   def initialize(source)
     @source = source
     @stack = ForthStack.new
+    @heap = ForthHeap.new
+    @constants = {}
     @user_words = {}
     @keywords = %w[cr drop dump dup emit invert over rot swap]
     @symbol_map = { '+' => 'add', '-' => 'sub', '*' => 'mul', '/' => 'div',
                     '=' => 'equal', '.' => 'dot', '<' => 'lesser', '>' => 'greater' }
-    @func_map = { '."' => proc { |x| eval_string(x) },
-                  ':' => proc { |x| create_word(x) },
+    @func_map = { '."' => proc { |x| eval_string(x) }, ':' => proc { |x| create_word(x) },
                   '(' => proc { |x| eval_comment(x) } }
   end
 
@@ -75,6 +67,9 @@ class ForthInterpreter
     return if invalid_line?(line)
 
     if (w = line.shift).is_a?(ForthObj)
+      # pass self to the object so it can call interpret_line
+      # however it wants. (E.g a Do Loop will call it multiple times,
+      # an IF will call it on either it's true or false block.)
       w.eval(self)
     elsif @user_words.key?(w.downcase.to_sym)
       # eval_user_word consumes its input. Have to clone it.
@@ -98,12 +93,49 @@ class ForthInterpreter
   def dispatch(word, line, bad_on_empty)
     if @func_map.key?((word = word.downcase))
       @func_map.fetch(word).call(line)
+    elsif %w[! @ variable constant].include?(word)
+      eval_variable(word, line)
     elsif %w[do if begin].include?(word)
       eval_obj(Object.const_get("Forth#{word.capitalize}"), line, bad_on_empty)
     else
       eval_word(word)
       line
     end
+  end
+
+  def eval_variable(word, line)
+    variable(word) if %w[! @].include?(word)
+
+    return define(line, proc { |w| @constants[w.to_sym] = @stack.pop }, 'constant') if word == 'constant'
+    return define(line, proc { |w| @heap.alloc(w) }, 'variable') unless %w[! @].include?(word)
+
+    line
+  end
+
+  def variable(word)
+    return warn STACK_UNDERFLOW unless (v1 = @stack.pop)
+
+    if word == '!'
+      return warn STACK_UNDERFLOW unless (v2 = @stack.pop)
+
+      @heap.set(v1, v2)
+    elsif word == '@'
+      @stack << @heap.get(v1)
+    end
+  end
+
+  def define(line, def_func, id)
+    return warn "#{BAD_DEF} Empty #{id} definition" if line.empty?
+    return warn "#{BAD_DEF} #{id.capitalize} names cannot be numbers" if (word = line[0]).to_i.to_s == word
+    return warn "#{BAD_DEF} Cannot overrite existing words" if system?(word)
+
+    def_func.call(word.downcase)
+    line[1..]
+  end
+
+  def system?(word)
+    @keywords.include?(word) || @symbol_map.key?(word.to_sym)\
+    || @user_words.key?(word.to_sym) || @constants.key?(word)
   end
 
   def eval_obj(obj, line, bad_on_empty)
@@ -168,6 +200,10 @@ class ForthInterpreter
       @stack.push(word.to_i)
     elsif @symbol_map.key?(word)
       @stack.send(@symbol_map[word].to_sym)
+    elsif @heap.defined?(word)
+      @stack.push(@heap.get_address(word))
+    elsif @constants.key?(word.to_sym)
+      @stack.push(@constants[word.to_sym])
     elsif valid_word(word)
       @stack.send(word.to_sym)
     end
