@@ -131,25 +131,6 @@ class ForthInterpreter
     end
   end
 
-  # TODO: Prevent certain words from being
-  # added to user defined words. In particular,
-  # don't allow word definition inside a word definition.
-  # Might also be good to have error checking
-  # while defining the word, not just when evaluating it. But
-  # that's less important.
-
-  # read words from stdin until a ';', storing
-  # each word in the user_words hash under 'name'
-  def read_word(line, name)
-    read_word(@source.gets.split, name) if line.empty?
-    word = line.shift
-    return line if word == ';'
-    return [] if word.nil?
-
-    @user_words[name].push(word)
-    read_word(line, name)
-  end
-
   # prints every word in the line until a " is found,
   # then returns the rest of the line.
   def eval_string(line)
