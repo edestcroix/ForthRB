@@ -223,18 +223,3 @@ class ForthIf
     line
   end
 end
-
-@stack = ForthStack.new
-@user_words = {}
-@keywords = %w[cr drop dump dup emit invert over rot swap]
-@symbol_map = { '+' => 'add', '-' => 'sub', '*' => 'mul', '/' => 'div',
-                '=' => 'equal', '.' => 'dot', '<' => 'lesser', '>' => 'greater' }
-
-def interpret
-  print '> '
-  $stdin.each_line do |line|
-    %W[quit\n exit\n].include?(line) ? exit(0) : interpret_line(line.split)
-    puts 'ok'
-    print '> '
-  end
-end
