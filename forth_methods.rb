@@ -1,5 +1,12 @@
 # frozen_string_literal: true
 
+SYNTAX =   '[SYNTAX]'
+BAD_TYPE = '[BAD_TYPE]'
+BAD_DEF =  '[BAD_DEF]'
+BAD_WORD = '[BAD_WORD]'
+BAD_LOOP = '[BAD_LOOP]'
+STACK_UNDERFLOW = '[STACK_UNDERFLOW]'
+
 # Put this in a mixin for organization purposes.
 module Maths
   def add
@@ -125,7 +132,7 @@ class ForthStack < Array
     ops.each do |op|
       next unless op.nil?
 
-      warn 'Stack underflow'
+      warn "#{STACK_UNDERFLOW} #{ops}"
       ops.reverse.each { |o| o.nil? ? nil : push(o) }
       return true
     end
@@ -193,10 +200,10 @@ class ForthIf < ForthObj
 
   def eval(stack)
     # If the IF is not good (there wasn't an ending THEN) warn and do nothing.
-    return warn 'Missing ending THEN' unless @good
+    return warn "#{SYNTAX} 'IF' without closing 'THEN'" unless @good
 
     top = stack.pop
-    return warn 'Stack underflow' if top.nil?
+    return warn STACK_UNDERFLOW if top.nil?
     return @false_block if top.zero?
 
     @true_block
@@ -248,13 +255,13 @@ class ForthDo < ForthObj
   end
 
   def eval(stack)
-    return warn 'Missing ending LOOP' unless @good
+    return warn "#{SYNTAX} 'DO' without closing 'LOOP'" unless @good
 
     start = stack.pop
     limit = stack.pop
-    return warn 'Stack underflow' if start.nil? || limit.nil?
-    return warn 'Invalid loop range' if start.negative? || limit.negative?
-    return warn 'Invalid loop range' if start > limit
+    return warn "#{STACK_UNDERFLOW} #{[start, limit]}" if start.nil? || limit.nil?
+    return warn "#{BAD_LOOP} Invalid loop range" if start.negative? || limit.negative?
+    return warn "#{BAD_LOOP} Invalid loop range" if start > limit
 
     do_loop(start, limit)
   end

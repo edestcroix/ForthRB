@@ -20,6 +20,7 @@ require_relative 'forth_methods'
 @symbol_map = { '+' => 'add', '-' => 'sub', '*' => 'mul', '/' => 'div',
                 '=' => 'equal', '.' => 'dot', '<' => 'lesser', '>' => 'greater' }
 
+
 # starting here, a line is read in from stdin. From this point, various recursive calls
 # are made to parse the line and evaluate it. The main function, interpret_line,
 # recursively iterates over the input line, and in the basic case just calls eval_word
@@ -93,14 +94,14 @@ end
 # with the next element in the line as the key, then read every
 # word until a ";" is found into the user_words hash.
 def create_word(line)
-  return warn 'Empty word definition' if line.empty?
+  return warn "#{BAD_DEF} Empty word definition" if line.empty?
 
   name = line[0].downcase.to_sym
   # This blocks overwriting system keywords, while still allowing
   # for user defined words to be overwritten.
   # TODO: Fully account for all disallowed words.
   if @keywords.include?(name) || @symbol_map.key?(name.to_sym) || name =~ /\d+/
-    warn "Word already defined: #{name}"
+    warn "#{BAD_DEF} Word already defined: #{name}"
   else
     @user_words.store(name, [])
     read_word(line[1..], name)
@@ -129,7 +130,7 @@ end
 # prints every word in the line until a " is found,
 # then returns the rest of the line.
 def eval_string(line)
-  return warn 'No closing " found' unless line.include?('"')
+  return warn "#{SYNTAX} No closing '\"' found" unless line.include?('"')
 
   print line[0..line.index('"') - 1].join(' ')
   print ' '
@@ -137,7 +138,7 @@ def eval_string(line)
 end
 
 def eval_comment(line)
-  return warn 'No closing ) found' unless line.include?(')')
+  return warn "#{SYNTAX} No closing ) found" unless line.include?(')')
 
   line[line.index(')') + 1..]
 end
@@ -154,8 +155,6 @@ def eval_word(word)
     @stack.send(@symbol_map[word].to_sym)
   elsif valid_word(word)
     @stack.send(word.to_sym)
-  else
-    warn "Unknown word: #{word}"
   end
 end
 
@@ -165,8 +164,10 @@ end
 # it has already been checked for being a user word, or a number or symbol.
 def valid_word(word)
   return false if word.nil?
-  return false if word == ';'
-  return false unless @keywords.include?(word)
+  return warn "#{SYNTAX} ';' without opening ':'" if word == ';'
+  return warn "#{SYNTAX} 'LOOP' without opening 'DO'" if word == 'loop'
+  return warn "#{SYNTAX} '#{word.upcase}' without opening 'IF'" if %w[else then].include?(word)
+  return warn "#{BAD_WORD} Unknown word '#{word}'" unless @keywords.include?(word)
 
   true
 end
