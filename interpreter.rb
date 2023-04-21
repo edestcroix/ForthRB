@@ -28,6 +28,12 @@ class Source
   end
 end
 
+# Main interpreter class. Holds the stack, and the dictionary of
+# user defined words. The dictionary is a hash of words to arrays
+# of words. Two methods are public: interpret and interpret_line.
+# interpret repeatedly calls interpret_line on lines read
+# from the source definied on creation. interpret_line takes
+# an array of words and evaluates them on the stack.
 class ForthInterpreter
   attr_reader :stack, :user_words
 
