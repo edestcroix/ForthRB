@@ -24,3 +24,9 @@ For example:
     : fac DUP 1 > IF DUP 1 - fac * ELSE DROP 1 THEN ;
     5 fac .
     120 ok
+
+
+Also, any forms of nested IF and DO statements should theoretically work,
+but this hasn't been tested yet.
+
+The code is also a complete mess. Probably going to redo some of it. Maybe.
