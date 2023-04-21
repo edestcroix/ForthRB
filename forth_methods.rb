@@ -133,14 +133,24 @@ class ForthStack < Array
   end
 end
 
-# Contains methods that are used by both ForthIf and ForthDoLoop,
-# and the future ForthBeginLoop once it's implemented.
-module ForthMethods
+# Contains methods that are used by both ForthIf and ForthDo,
+# and the future ForthBegin once it's implemented.
+class ForthObj
+  def initialize(bad_on_empty)
+    @good = true
+    @bad_on_empty = bad_on_empty
+  end
+
+  # this is quite nifty, if the word is if or do, it will be replaced with ForthIf or
+  # ForthDo. This way, nested IF's and DO's can be supported, and can error check properly.
+  # Waiting to build the new object until after parsing doesn't work, because the outermost IF
+  # or DO will eat the closing word of the innermost IF or DO and fail.
   def add_to_block(block, word, line)
     begin
       new_word = Object.const_get("Forth#{word.capitalize}").new(@bad_on_empty)
       line = new_word.read_line(line)
       block << new_word
+    # if the above fails, it's a normal word.
     rescue NameError
       block << word
     end
@@ -170,17 +180,15 @@ end
 # If another IF is encountered, creates a new ForthIf class,
 # and starts it parsing on the rest of the line, resuming it's
 # own parsing where that IF left off.
-class ForthIf
-  include ForthMethods
+class ForthIf < ForthObj
   # takes in fail_on_empty, which tells the IF what to
   # do if it encounters an empty line. If it's true,
   # it sets @good to false. If it's false, it will keep
   # looking for more lines to read until it finds a THEN.
   def initialize(bad_on_empty)
+    super(bad_on_empty)
     @true_block = []
     @false_block = []
-    @good = true
-    @bad_on_empty = bad_on_empty
   end
 
   def eval(stack)
@@ -229,12 +237,10 @@ end
 # for the loop. (End non-inclusive) From this it builds the sequence
 # of blocks needed to execute the loop. For each iteration, it duplicates
 # the base block, and replaces any I in the block with the current iteration value.
-class ForthDo
-  include ForthMethods
+class ForthDo < ForthObj
   def initialize(bad_on_empty)
+    super(bad_on_empty)
     @block = []
-    @good = true
-    @bad_on_empty = bad_on_empty
   end
 
   def read_line(line)

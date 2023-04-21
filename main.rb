@@ -44,7 +44,7 @@ end
 def interpret_line(line, bad_on_empty)
   return if invalid_line?(line)
 
-  if (w = line.shift).is_a?(ForthDo) || w.is_a?(ForthIf)
+  if (w = line.shift).is_a?(ForthObj)
     line = w.eval(@stack).dup
     bad_on_empty = true
   elsif @user_words.key?(w.downcase.to_sym)
