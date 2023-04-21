@@ -143,7 +143,8 @@ end
 # Contains methods that are used by both ForthIf and ForthDo,
 # and the future ForthBegin once it's implemented.
 class ForthObj
-  def initialize(bad_on_empty)
+  def initialize(source, bad_on_empty)
+    @source = source
     @good = true
     @bad_on_empty = bad_on_empty
   end
@@ -154,7 +155,7 @@ class ForthObj
   # or DO will eat the closing word of the innermost IF or DO and fail.
   def add_to_block(block, word, line)
     begin
-      new_word = Object.const_get("Forth#{word.capitalize}").new(@bad_on_empty)
+      new_word = Object.const_get("Forth#{word.capitalize}").new(@source, @bad_on_empty)
       line = new_word.read_line(line)
       block << new_word
     # if the above fails, it's a normal word.
@@ -171,7 +172,7 @@ class ForthObj
       @good = false
       return []
     end
-    return read_until($stdin.gets.split, block, end_word) if line.empty?
+    return read_until(@source.gets.split, block, end_word) if line.empty?
 
     word = line.shift
     return [] if word.nil?
@@ -194,17 +195,17 @@ class ForthIf < ForthObj
   # do if it encounters an empty line. If it's true,
   # it sets @good to false. If it's false, it will keep
   # looking for more lines to read until it finds a THEN.
-  def initialize(bad_on_empty)
-    super(bad_on_empty)
+  def initialize(source, bad_on_empty)
+    super(source, bad_on_empty)
     @true_block = []
     @false_block = []
   end
 
-  def eval(stack)
+  def eval(interpreter)
     # If the IF is not good (there wasn't an ending THEN) warn and do nothing.
     return warn "#{SYNTAX} 'IF' without closing 'THEN'" unless @good
 
-    top = stack.pop
+    top = interpreter.stack.pop
     return warn STACK_UNDERFLOW if top.nil?
     return @false_block.dup if top.zero?
 
@@ -229,7 +230,7 @@ class ForthIf < ForthObj
       return []
     end
 
-    return read_true($stdin.gets.split) if line.empty?
+    return read_true(@source.gets.split) if line.empty?
 
     word = line.shift
     return [] if word.nil?
@@ -247,8 +248,8 @@ end
 # of blocks needed to execute the loop. For each iteration, it duplicates
 # the base block, and replaces any I in the block with the current iteration value.
 class ForthDo < ForthObj
-  def initialize(bad_on_empty)
-    super(bad_on_empty)
+  def initialize(source, bad_on_empty)
+    super(source, bad_on_empty)
     @block = []
   end
 
@@ -256,11 +257,11 @@ class ForthDo < ForthObj
     read_until(line, @block, 'loop')
   end
 
-  def eval(stack)
+  def eval(interpreter)
     return warn "#{SYNTAX} 'DO' without closing 'LOOP'" unless @good
 
-    start = stack.pop
-    limit = stack.pop
+    start = interpreter.stack.pop
+    limit = interpreter.stack.pop
     return warn "#{STACK_UNDERFLOW} #{[start, limit]}" if start.nil? || limit.nil?
     return warn "#{BAD_LOOP} Invalid loop range" if start.negative? || limit.negative?
     return warn "#{BAD_LOOP} Invalid loop range" if start > limit
