@@ -106,6 +106,8 @@ class ForthMath < ForthWord
   def mathop(stack)
     op1 = stack.pop
     op2 = stack.pop
+    return if check_nil([op1, op2])
+
     result = begin
       op2.send(@opr, op1)
     rescue ZeroDivisionError
@@ -195,8 +197,8 @@ end
 
 # Forth Dump operation
 class ForthDump < ForthWord
-  def eval(interprer)
-    print interprer.stack
+  def eval(interpreter)
+    print interpreter.stack
     puts ''
   end
 end
@@ -277,6 +279,125 @@ class ForthSwap < ForthWord
     op2 = interpreter.stack.pop
     interpreter.stack.insert(-1, op1, op2) unless check_nil([op1, op2])
   end
+end
+
+# Forth String. On eval, prints the line up to the first "
+# character. Sets @remainder to the line after the ". If
+# there is no ", it raises a warning on eval.
+class ForthString < ForthObj
+  def initialize(line, *)
+    super()
+    @good = line.include?('"')
+    @remainder = line[line.index('"') + 1..] if @good
+    @string = line[0..line.index('"') - 1] if @good
+  end
+
+  def eval(*)
+    return warn "#{SYNTAX} No closing '\"' found" unless @good
+
+    puts @string
+  end
+end
+
+# Forth Comment. Behaves the same as ForthString, except doesn't print anything.
+class ForthComment < ForthObj
+  def initialize(line, *)
+    super()
+    @good = line.include?(')')
+    @remainder = line[line.index(')') + 1..] if @good
+    @string = line[0..line.index(')') - 1] if @good
+  end
+
+  def eval(*) end
+end
+
+# On eval, pushes the value in the heap at the address on the
+# top of the stack to the top of the stack.
+class ForthGetVar < ForthWord
+  def initialize(line, *)
+    super(line)
+  end
+
+  def eval(interpreter)
+    return warn STACK_UNDERFLOW unless (addr = interpreter.stack.pop)
+    
+    interpreter.stack << interpreter.heap.get(addr)
+  end
+end
+
+# On eval, sets the address on the top of the stack to the
+# value on the second to top of the stack.
+class ForthSetVar < ForthWord
+  def initialize(line, *)
+    super(line)
+  end
+
+  def eval(interpreter)
+    return warn STACK_UNDERFLOW unless (addr = interpreter.stack.pop)
+
+    return warn STACK_UNDERFLOW unless (val = interpreter.stack.pop)
+
+    interpreter.heap.set(addr, val)
+  end
+end
+
+# Parent class for Variable and Constant definition objects.
+class ForthDefine < ForthObj
+  def initialize(line, *)
+    super()
+    @name = line.shift
+    @remainder = line
+  end
+
+  private
+
+  def valid_def(name, interpreter, id)
+    if name.nil?
+      return warn "#{BAD_DEF} Empty #{id} definition"
+    elsif @name.to_i.to_s == @name
+      return warn "#{BAD_DEF} #{id.capitalize} names cannot be numbers"
+    elsif interpreter.system?(@name)
+      return warn "#{BAD_DEF} Cannot overrite existing words"
+    end
+
+    true
+  end
+end
+
+# Defines a variable in the heap. On eval, allocate
+# free space in the heap and store the address under '@name',
+# which was read in as the first value on the line.
+class ForthVariable < ForthDefine
+  def eval(interpreter)
+    return unless valid_def(@name, interpreter, 'variable')
+
+    interpreter.heap.create(@name.downcase)
+  end
+end
+
+# Defines a global constant. Sets @name to be the first value
+# popped off the stack in the interpeter's constants list.
+class ForthConstant < ForthDefine
+  def eval(interpreter)
+    return unless valid_def(@name, interpreter, 'constant')
+
+    interpreter.constants[@name.downcase.to_sym] = interpreter.stack.pop
+  end
+end
+
+# On eval, takes the top value of the stack as an address and
+# allocates that much free space in the heap.
+class ForthAllot < ForthDefine
+  def eval(interpreter)
+    return warn STACK_UNDERFLOW unless (addr = interpreter.stack.pop)
+
+    interpreter.heap.allot(addr)
+  end
+end
+
+# Doesn't do anything in this implementation.
+class ForthCells < ForthWord
+  def eval(*) end
 end
 
 # Contains methods that are used by both ForthIf and ForthDo,

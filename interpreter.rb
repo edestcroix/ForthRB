@@ -32,49 +32,7 @@ end
 module ForthEvaluators
   # maps the various types of words to their respective functions.
   def func_map
-    { '."' => proc { |x| eval_string(x) },
-      ':' => proc { |x| create_word(x) },
-      '(' => proc { |x| eval_comment(x) } }
-  end
-
-  # same as func_map, but for variable and constant definitions.
-  def var_map
-    { '!' => proc { |x| eval_variable('!', x) },
-      '@' => proc { |x| eval_variable('@', x) },
-      'variable' => proc { |x| eval_variable('variable', x) },
-      'constant' => proc { |x| eval_variable('constant', x) },
-      'allot' => proc { |x| eval_variable('allot', x) },
-      'cells' => proc { |x| eval_variable('cells', x) } }
-  end
-
-  # evaluates variable and constant definitions, as well as variable access and allotment.
-  def eval_variable(word, line)
-    return define(line, proc { |w| @constants[w.to_sym] = @stack.pop }, 'constant') if word == 'constant'
-    return define(line, proc { |w| @heap.create(w) }, 'variable') if word == 'variable'
-
-    if %w[! @].include?(word)
-      variable(word)
-    else
-      allot(word)
-    end
-    line
-  end
-
-  # prints every word in the line until a " is found,
-  # then returns the rest of the line.
-  def eval_string(line)
-    return warn "#{SYNTAX} No closing '\"' found" unless line.include?('"')
-
-    print line[0..line.index('"') - 1].join(' ')
-    print ' '
-    line[line.index('"') + 1..]
-  end
-
-  # returns the line after the first ) found.
-  def eval_comment(line)
-    return warn "#{SYNTAX} No closing ) found" unless line.include?(')')
-
-    line[line.index(')') + 1..]
+    { ':' => proc { |x| create_word(x) } }
   end
 
   # Evaluates basic Forth words. (I.e the default single word operators,
@@ -110,38 +68,6 @@ module ForthEvaluators
 
     true
   end
-
-  def variable(word)
-    return warn STACK_UNDERFLOW unless (v1 = @stack.pop)
-
-    if word == '!'
-      return warn STACK_UNDERFLOW unless (v2 = @stack.pop)
-
-      @heap.set(v1, v2)
-    elsif word == '@'
-      @stack << @heap.get(v1)
-    end
-  end
-
-  # Wrapper around common code for variable and constant definitions.
-  def define(line, def_func, id)
-    return warn "#{BAD_DEF} Empty #{id} definition" if line.empty?
-    return warn "#{BAD_DEF} #{id.capitalize} names cannot be numbers" if (word = line[0]).to_i.to_s == word
-    return warn "#{BAD_DEF} Cannot overrite existing words" if system?(word)
-
-    def_func.call(word.downcase)
-    line[1..]
-  end
-
-  def allot(word)
-    # CELLS is supposed to mutiply the top of stack by
-    # the cell width, but in this implementation it is always 1,
-    # which is the same as just skipping CELLS words.
-    return if word == 'cells'
-    return warn STACK_UNDERFLOW unless (v1 = @stack.pop)
-
-    @heap.allot(v1) if word == 'allot'
-  end
 end
 
 # Main interpreter class. Holds the stack, and the dictionary of
@@ -152,7 +78,7 @@ end
 # an array of words and evaluates them on the stack.
 class ForthInterpreter
   include ForthEvaluators
-  attr_reader :stack
+  attr_reader :stack, :heap, :constants
 
   def initialize(source)
     @source = source
@@ -160,10 +86,11 @@ class ForthInterpreter
     @heap = ForthHeap.new
     @constants = {}
     @user_words = {}
-    @func_map = func_map.merge(var_map)
-    @keywords = %w[cr drop dump dup emit invert over rot swap ! @ variable constant allot cells if do begin]
+    @func_map = func_map
+    @keywords = %w[cr drop dump dup emit invert over rot swap variable constant allot cells if do begin]
     @symbol_map = { '+' => 'add', '-' => 'sub', '*' => 'mul', '/' => 'div',
-                    '=' => 'equal', '.' => 'dot', '<' => 'lesser', '>' => 'greater' }
+                    '=' => 'equal', '.' => 'dot', '<' => 'lesser', '>' => 'greater',
+                    '."' => 'string', '(' => 'comment', '!' => 'set_var', '@' => 'get_var' }
   end
 
   # starting here, a line is read in from stdin. From this point, various recursive calls
@@ -202,6 +129,11 @@ class ForthInterpreter
     interpret_line(line, bad_on_empty)
   end
 
+  def system?(word)
+    @keywords.include?(word) || @symbol_map.key?(word)\
+    || @user_words.key?(word.to_sym) || @constants.key?(word)
+  end
+
   private
 
   # putting this here instead of just having in interpret_line directly
@@ -232,12 +164,7 @@ class ForthInterpreter
            else
              word
            end
-    "Forth#{word.capitalize}"
-  end
-
-  def system?(word)
-    @keywords.include?(word) || @symbol_map.key?(word)\
-    || @user_words.key?(word.to_sym) || @constants.key?(word)
+    "Forth#{word.split('_').map!(&:capitalize).join('')}"
   end
 
   def eval_obj(obj, line, bad_on_empty)
