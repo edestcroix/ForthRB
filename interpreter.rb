@@ -156,12 +156,12 @@ class ForthInterpreter
 
   def initialize(source)
     @source = source
-    @stack = ForthStack.new
+    @stack = []
     @heap = ForthHeap.new
     @constants = {}
     @user_words = {}
     @func_map = func_map.merge(var_map)
-    @keywords = %w[cr drop dump dup emit invert over rot swap ! @ variable constant allot cells]
+    @keywords = %w[cr drop dump dup emit invert over rot swap ! @ variable constant allot cells if do begin]
     @symbol_map = { '+' => 'add', '-' => 'sub', '*' => 'mul', '/' => 'div',
                     '=' => 'equal', '.' => 'dot', '<' => 'lesser', '>' => 'greater' }
   end
@@ -212,18 +212,31 @@ class ForthInterpreter
 
   # Calls the appropriate function based on the word.
   def dispatch(word, line, bad_on_empty)
-    if @func_map.key?((word = word.downcase))
-      @func_map.fetch(word).call(line)
-    elsif (new_obj = klass("Forth#{word.capitalize}"))
+    w = word
+
+    if @func_map.key?((w = w.downcase))
+      @func_map.fetch(w).call(line)
+    elsif (new_obj = klass(name(w)))
       eval_obj(new_obj, line, bad_on_empty)
     else
-      eval_word(word)
+      eval_word(w)
       line
     end
   end
 
+  def name(word)
+    word = if (w = @symbol_map[word.downcase])
+             w
+           elsif !@keywords.include?(word.downcase)
+             'bad'
+           else
+             word
+           end
+    "Forth#{word.capitalize}"
+  end
+
   def system?(word)
-    @keywords.include?(word) || @symbol_map.key?(word.to_sym)\
+    @keywords.include?(word) || @symbol_map.key?(word)\
     || @user_words.key?(word.to_sym) || @constants.key?(word)
   end
 

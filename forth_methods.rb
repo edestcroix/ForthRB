@@ -8,90 +8,6 @@ BAD_LOOP = '[BAD_LOOP]'
 BAD_ADDRESS = '[BAD_ADDRESS]'
 STACK_UNDERFLOW = '[STACK_UNDERFLOW]'
 
-# Put this in a mixin for organization purposes.
-module Maths
-  def add
-    mathop(:+)
-  end
-
-  def sub
-    mathop(:-)
-  end
-
-  def mul
-    mathop(:*)
-  end
-
-  def div
-    mathop(:/)
-  rescue ZeroDivisionError
-    0
-  end
-
-  def and
-    mathop(:&)
-  end
-
-  def or
-    mathop(:|)
-  end
-
-  def xor
-    mathop(:^)
-  end
-end
-
-# Implements Forth operations over top a Ruby array.
-class ForthStack < Array
-  include Maths
-
-  def initialize(*args)
-    super(*args)
-  end
-
-  def cr
-    puts ''
-  end
-
-  def dot
-    op = pop
-    print "#{op} " unless check_nil([op])
-  end
-
-  def greater
-    op1 = pop
-    op2 = pop
-    (push op2 > op1 ? -1 : 0) unless check_nil([op1, op2])
-  end
-
-  def lesser
-    op1 = pop
-    op2 = pop
-    (push op2 < op1 ? -1 : 0) unless check_nil([op1, op2])
-  end
-
-  private
-
-  def mathop(opr)
-    op1 = pop
-    op2 = pop
-    push(op2.send(opr, op1)) unless check_nil([op1, op2])
-  end
-
-  # if any of the operands are nil, return true,
-  # and put the ones that aren't back on the stack
-  def check_nil(ops)
-    ops.each do |op|
-      next unless op.nil?
-
-      warn "#{STACK_UNDERFLOW} #{ops}"
-      ops.reverse.each { |o| o.nil? ? nil : push(o) }
-      return true
-    end
-    false
-  end
-end
-
 # Implements a Heap for the ForthInterpreter to store variables in.
 class ForthHeap
   def initialize
@@ -132,10 +48,27 @@ class ForthHeap
   end
 end
 
+# The way this works, is that the interpreter converts
+# keywords in the input into ForthObj's, and does two things
+# Call eval(self) on the object to evaluate the word.
+# Continute parsing on obj.remainder. This second step
+# is so that complex words like IF, that have to parse input
+# themselves can return the remainder of the line after
+# they finish parsing (becauase if they have to read a new line from
+# the input the original one is gone. )
+
+# Common Operations for any math operations
+# Base class for all Forth objects. All inherit from this so that testing for f
+# orth objects is easy, using is_a?(ForthObj)
 class ForthObj
   attr_reader :remainder
 end
 
+# Parent class for all keyword Forth words. I.e no IFs or strings.
+# initialize has * so that it can take any number of arguments,
+# as the interpeter treats all objects the same and will pass
+# too many arguments to the constructor. Later classes do use
+# these additional arguments.
 class ForthWord < ForthObj
   def initialize(line, *)
     super()
@@ -153,6 +86,88 @@ class ForthWord < ForthObj
       return true
     end
     false
+  end
+end
+
+# All math operations inherit from this, becauase
+# they all do basically the same thing.
+class ForthMath < ForthWord
+  def initialize(line, opr)
+    super(line)
+    @opr = opr
+  end
+
+  def eval(interpreter)
+    mathop(interpreter.stack)
+  end
+
+  private
+
+  def mathop(stack)
+    op1 = stack.pop
+    op2 = stack.pop
+    result = begin
+      op2.send(@opr, op1)
+    rescue ZeroDivisionError
+      0
+    end
+    stack << result unless check_nil([op1, op2])
+  end
+end
+
+# Forth Add operation
+class ForthAdd < ForthMath
+  def initialize(line, *)
+    super(line, :+)
+  end
+end
+
+# Forth Sub operation
+class ForthSub < ForthMath
+  def initialize(line, *)
+    super(line, :-)
+  end
+end
+
+# Forth * operation
+class ForthMul < ForthMath
+  def initialize(line, *)
+    super(line, :*)
+  end
+end
+
+# Forth / operation
+class ForthDiv < ForthMath
+  def initialize(line, *)
+    super(line, :/)
+  end
+end
+
+# Forth mod operation
+class ForthMod < ForthMath
+  def initialize(line, *)
+    super(line, :%)
+  end
+end
+
+# Forth and operation
+class ForthAnd < ForthMath
+  def initialize(line, *)
+    super(line, :&)
+  end
+end
+
+# Forth or operation
+class ForthOr < ForthMath
+  def initialize(line, *)
+    super(line, :|)
+  end
+end
+
+# Forth xor operation
+class ForthXor < ForthMath
+  def initialize(line, *)
+    super(line, :^)
   end
 end
 
@@ -336,10 +351,6 @@ class ForthIf < ForthAdvObj
     interpreter.interpret_line(@true_block.dup, true)
   end
 
-  def read_line(line)
-    read_true(line)
-  end
-
   private
 
   def read_true(line)
@@ -378,10 +389,6 @@ class ForthDo < ForthAdvObj
     @remainder = read_until(line, @block, 'loop')
   end
 
-  def read_line(line)
-    read_until(line, @block, 'loop')
-  end
-
   def eval(interpreter)
     return warn "#{SYNTAX} 'DO' without closing 'LOOP'" unless @good
 
@@ -398,7 +405,7 @@ class ForthDo < ForthAdvObj
   # and interpret the block using the interprer
   def do_loop(interpreter, start, limit)
     (start..limit - 1).each do |i|
-      run_block = @block.dup.map { |w| w.is_a?(String) && w.downcase == 'i' ? i.to_s : w }
+      run_block = @block.dup.map { |weeeee| weeeee.is_a?(String) && weeeee.downcase == 'i' ? i.to_s : weeeee }
       interpreter.interpret_line(run_block, true)
     end
   end
@@ -412,10 +419,6 @@ class ForthBegin < ForthAdvObj
     super(source, bad_on_empty)
     @block = []
     @remainder = read_until(line, @block, 'until')
-  end
-
-  def read_line(line)
-    read_until(line, @block, 'until')
   end
 
   def eval(interpreter)
