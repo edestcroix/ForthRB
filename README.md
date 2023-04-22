@@ -1,5 +1,5 @@
 # ForthRB
-A (work in progress) Forth interpreter written in Ruby.
+A Forth interpreter written in Ruby.
 
 ## Supported Operations
 - All standard keywords (`DUMP`, `DROP`, `INVERT`, `ROT`, etc.)
@@ -8,9 +8,9 @@ A (work in progress) Forth interpreter written in Ruby.
 - `IF ... ELSE ... THEN` blocks
 - `DO ... LOOP` blocks
 - `BEGIN ... UNTIL` blocks
+- Variables (`VARIABLE`, `CONSTANT`, `!`, `@`, `ALLOT`, `CELLS`)
 
 ## To Be Implemented
-- Variables.
 - Better error handling and syntax checking.
 
 ## Running
@@ -30,4 +30,7 @@ For example:
     5 fac .
     120 ok
 
-The code is also a complete mess. Probably going to redo some of it. Maybe.
+Memory addresses for variables start at 1000.
+
+Also, the CELLS keyword doesn't do anything in this implementation because
+the cell size is always 1, so there is nothing to multiply.

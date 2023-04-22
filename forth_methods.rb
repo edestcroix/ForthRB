@@ -48,27 +48,20 @@ class ForthHeap
   end
 end
 
-# The way this works, is that the interpreter converts
-# keywords in the input into ForthObj's, and does two things
-# Call eval(self) on the object to evaluate the word.
-# Continute parsing on obj.remainder. This second step
-# is so that complex words like IF, that have to parse input
-# themselves can return the remainder of the line after
-# they finish parsing (becauase if they have to read a new line from
-# the input the original one is gone. )
-
-# Common Operations for any math operations
-# Base class for all Forth objects. All inherit from this so that testing for f
-# orth objects is easy, using is_a?(ForthObj)
+# Base class for all Forth objects. All inherit from this so that testing for forth
+# objects is easy, using is_a?(ForthObj). Every object of this type should have one
+# public method, eval(interpreter), that takes an interpreter object and does the
+# operation it represents. All objects should also have a remainder attribute, that
+# is the remainder of the line after the object has been parsed.
 class ForthObj
   attr_reader :remainder
+
+  def eval(*) end
 end
 
 # Parent class for all keyword Forth words. I.e no IFs or strings.
-# initialize has * so that it can take any number of arguments,
-# as the interpeter treats all objects the same and will pass
-# too many arguments to the constructor. Later classes do use
-# these additional arguments.
+# Since these only take up a single word in the input, they
+# always set remainder to the input line.
 class ForthWord < ForthObj
   def initialize(line, *)
     super()
@@ -77,20 +70,20 @@ class ForthWord < ForthObj
 
   private
 
-  def check_nil(ops, stack)
-    ops.each do |op|
-      next unless op.nil?
+  def check_nil(values, stack)
+    values.each do |val|
+      next unless val.nil?
 
-      warn "#{STACK_UNDERFLOW} #{ops}"
-      ops.reverse.each { |o| o.nil? ? nil : stack.push(o) }
+      warn "#{STACK_UNDERFLOW} #{values}"
+      values.reverse.each { |v| v.nil? ? nil : stack.push(v) }
       return true
     end
     false
   end
 end
 
-# All math operations inherit from this, becauase
-# they all do basically the same thing.
+# All math operations inherit from this, because the only
+# difference between them is the operator they use.
 class ForthMath < ForthWord
   def initialize(line, opr)
     super(line)
@@ -104,27 +97,27 @@ class ForthMath < ForthWord
   private
 
   def mathop(stack)
-    op1 = stack.pop
-    op2 = stack.pop
-    return if check_nil([op1, op2], stack)
+    v1 = stack.pop
+    v2 = stack.pop
+    return if check_nil([v1, v2], stack)
 
     result = begin
-      op2.send(@opr, op1)
+      v2.send(@opr, v1)
     rescue ZeroDivisionError
       0
     end
-    stack << result unless check_nil([op1, op2], stack)
+    stack << result unless check_nil([v1, v2], stack)
   end
 end
 
-# Forth Add operation
+# Forth + operation
 class ForthAdd < ForthMath
   def initialize(line, *)
     super(line, :+)
   end
 end
 
-# Forth Sub operation
+# Forth - operation
 class ForthSub < ForthMath
   def initialize(line, *)
     super(line, :-)
@@ -145,57 +138,57 @@ class ForthDiv < ForthMath
   end
 end
 
-# Forth mod operation
+# Forth MOD operation
 class ForthMod < ForthMath
   def initialize(line, *)
     super(line, :%)
   end
 end
 
-# Forth and operation
+# Forth AND operation
 class ForthAnd < ForthMath
   def initialize(line, *)
     super(line, :&)
   end
 end
 
-# Forth or operation
+# Forth OR operation
 class ForthOr < ForthMath
   def initialize(line, *)
     super(line, :|)
   end
 end
 
-# Forth xor operation
+# Forth XOR operation
 class ForthXor < ForthMath
   def initialize(line, *)
     super(line, :^)
   end
 end
 
-# Forth CR operation
+# Forth CR operation (print newline)
 class ForthCr < ForthWord
   def eval(*)
     puts ''
   end
 end
 
-# Forth . operation
+# Forth . operation (Pops and prints top of stack)
 class ForthDot < ForthWord
   def eval(interpreter)
-    op = interpreter.stack.pop
-    print "#{op} " unless check_nil([op], interpreter.stack)
+    v = interpreter.stack.pop
+    print "#{v} " unless check_nil([v], interpreter.stack)
   end
 end
 
-# Forth Drop operation
+# Forth DROP operation. (Pops top of stack)
 class ForthDrop < ForthWord
   def eval(interpreter)
     interpreter.stack.pop
   end
 end
 
-# Forth Dump operation
+# Forth DUMP operation. (Prints stack)
 class ForthDump < ForthWord
   def eval(interpreter)
     print interpreter.stack
@@ -203,81 +196,80 @@ class ForthDump < ForthWord
   end
 end
 
-# Forth Dup operation
+# Forth DUP operation. (Duplicates top of stack)
 class ForthDup < ForthWord
   def eval(interpreter)
-    interpreter.stack.push(interpreter.stack.last)
+    interpreter.stack << (interpreter.stack.last)
   end
 end
 
-# Forth Emit operation
+# Forth EMIT operation. (Prints ASCII of top of stack)
 class ForthEmit < ForthWord
   def eval(interpreter)
-    # print ASCII of the top of the stack
-    op = interpreter.stack.pop
-    print "#{op.to_s[0].codepoints} " unless check_nil([op], interpreter.stack)
+    v = interpreter.stack.pop
+    print "#{v.to_s[0].codepoints} " unless check_nil([v], interpreter.stack)
   end
 end
 
-# Forth Equal operation
+# Forth = operation
 class ForthEqual < ForthWord
   def eval(interpreter)
-    op1 = interpreter.stack.pop
-    op2 = interpreter.stack.pop
-    (interpreter.stack << op1 == op2 ? -1 : 0) unless check_nil([op1, op2], interpreter.stack)
+    v1 = interpreter.stack.pop
+    v2 = interpreter.stack.pop
+    interpreter.stack << (v1 == v2 ? -1 : 0) unless check_nil([v1, v2], interpreter.stack)
   end
 end
 
-# Forth Greater operation
+# Forth > operation
 class ForthGreater < ForthWord
   def eval(interpreter)
-    op1 = interpreter.stack.pop
-    op2 = interpreter.stack.pop
-    (interpreter.stack << op2 > op1 ? -1 : 0) unless check_nil([op1, op2], interpreter.stack)
+    v1 = interpreter.stack.pop
+    v2 = interpreter.stack.pop
+    interpreter.stack << (v2 > v1 ? -1 : 0) unless check_nil([v1, v2], interpreter.stack)
   end
 end
 
-# Forth Invert operation
+# Forth INVERT operation
 class ForthInvert < ForthWord
   def eval(interpreter)
-    interpreter.stack.push(~interpreter.stack.pop)
+    interpreter.stack << (~interpreter.stack.pop)
   end
 end
 
-# Forth Lesser operation
+# Forth < operation
 class ForthLesser < ForthWord
   def eval(interpreter)
-    op1 = interpreter.stack.pop
-    op2 = interpreter.stack.pop
-    (interpreter.stack << op2 < op1 ? -1 : 0) unless check_nil([op1, op2], interpreter.stack)
+    v1 = interpreter.stack.pop
+    v2 = interpreter.stack.pop
+    interpreter.stack << (v2 < v1 ? -1 : 0) unless check_nil([v1, v2], interpreter.stack)
   end
 end
 
-# Forth Over operation
+# Forth OVER operation. (Copies the second value on the stack in front of the first)
 class ForthOver < ForthWord
   def eval(interpreter)
-    op1 = interpreter.stack.pop
-    op2 = interpreter.stack.pop
-    interpreter.stack.insert(-1, op1, op2, op1) unless check_nil([op1, op2], interpreter.stack)
+    v1 = interpreter.stack.pop
+    v2 = interpreter.stack.pop
+    interpreter.stack.insert(-1, v1, v2, v1) unless check_nil([v1, v2], interpreter.stack)
   end
 end
 
-# Forth Rot operation
+# Forth ROT operation. (Rotates the order of the top three values on the stack)
 class ForthRot < ForthWord
   def eval(interpreter)
-    op1 = interpreter.stack.pop
-    op2 = interpreter.stack.pop
-    op3 = interpreter.stack.pop
-    interpreter.stack.insert(-1, op2, op1, op3) unless check_nil([op1, op2, op3], interpreter.stack)
+    v1 = interpreter.stack.pop
+    v2 = interpreter.stack.pop
+    v3 = interpreter.stack.pop
+    interpreter.stack.insert(-1, v2, v1, v3) unless check_nil([v1, v2, v3], interpreter.stack)
   end
 end
 
-# Forth Swap operation
+# Forth SWAP operation. (Swaps the places of the first two stack elements)
 class ForthSwap < ForthWord
   def eval(interpreter)
-    op1 = interpreter.stack.pop
-    op2 = interpreter.stack.pop
-    interpreter.stack.insert(-1, op1, op2) unless check_nil([op1, op2], interpreter.stack)
+    v1 = interpreter.stack.pop
+    v2 = interpreter.stack.pop
+    interpreter.stack.insert(-1, v1, v2) unless check_nil([v1, v2], interpreter.stack)
   end
 end
 
