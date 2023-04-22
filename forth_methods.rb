@@ -58,65 +58,16 @@ class ForthStack < Array
     print "#{op} " unless check_nil([op])
   end
 
-  def drop
-    pop
-  end
-
-  def dump
-    print self
-    puts ''
-  end
-
-  def dup
-    op = pop
-    insert(-1, op, op) unless check_nil([op])
-  end
-
-  def emit
-    # print ASCII of the top of the stack
-    op = pop
-    print "#{op.to_s.codepoints[0]} " unless check_nil([op])
-  end
-
-  def equal
-    op1 = pop
-    op2 = pop
-    (push op1 == op2 ? -1 : 0) unless check_nil([op1, op2])
-  end
-
   def greater
     op1 = pop
     op2 = pop
     (push op2 > op1 ? -1 : 0) unless check_nil([op1, op2])
   end
 
-  def invert
-    push(~pop)
-  end
-
   def lesser
     op1 = pop
     op2 = pop
     (push op2 < op1 ? -1 : 0) unless check_nil([op1, op2])
-  end
-
-  def over
-    op1 = pop
-    op2 = pop
-    insert(-1, op2, op1) unless check_nil([op1, op2])
-  end
-
-  def rot
-    op1 = pop
-    op2 = pop
-    op3 = pop
-    insert(-1, op2, op1, op3) unless check_nil([op1, op2, op3])
-  end
-
-  def swap
-    op1 = pop
-    op2 = pop
-    insert(-1, op1, op2) unless check_nil([op1, op2])
   end
 
   private
@@ -181,10 +132,136 @@ class ForthHeap
   end
 end
 
+class ForthObj
+  attr_reader :remainder
+end
+
+class ForthWord < ForthObj
+  def initialize(line, *)
+    super()
+    @remainder = line
+  end
+
+  private
+
+  def check_nil(ops)
+    ops.each do |op|
+      next unless op.nil?
+
+      warn "#{STACK_UNDERFLOW} #{ops}"
+      ops.reverse.each { |o| o.nil? ? nil : push(o) }
+      return true
+    end
+    false
+  end
+end
+
+# Forth CR operation
+class ForthCr < ForthWord
+  def eval(*)
+    puts ''
+  end
+end
+
+# Forth . operation
+class ForthDot < ForthWord
+  def eval(interpreter)
+    op = interpreter.stack.pop
+    print "#{op} " unless check_nil([op])
+  end
+end
+
+# Forth Drop operation
+class ForthDrop < ForthWord
+  def eval(interpreter)
+    interpreter.stack.pop
+  end
+end
+
+# Forth Dump operation
+class ForthDump < ForthWord
+  def eval(interprer)
+    print interprer.stack
+    puts ''
+  end
+end
+
+# Forth Emit operation
+class ForthEmit < ForthWord
+  def eval(interpreter)
+    # print ASCII of the top of the stack
+    op = interpreter.stack.pop
+    print "#{op.to_s[0].codepoints} " unless check_nil([op])
+  end
+end
+
+# Forth Equal operation
+class ForthEqual < ForthWord
+  def eval(interpreter)
+    op1 = interpreter.stack.pop
+    op2 = interpreter.stack.pop
+    (interpreter.stack.push op1 == op2 ? -1 : 0) unless check_nil([op1, op2])
+  end
+end
+
+# Forth Greater operation
+class ForthGreater < ForthWord
+  def eval(interpreter)
+    op1 = interpreter.stack.pop
+    op2 = interpreter.stack.pop
+    (interpreter.stack.push op2 > op1 ? -1 : 0) unless check_nil([op1, op2])
+  end
+end
+
+# Forth Invert operation
+class ForthInvert < ForthWord
+  def eval(interpreter)
+    interpreter.stack.push(~interpreter.stack.pop)
+  end
+end
+
+# Forth Lesser operation
+class ForthLesser < ForthWord
+  def eval(interpreter)
+    op1 = interpreter.stack.pop
+    op2 = interpreter.stack.pop
+    (interpreter.stack.push op2 < op1 ? -1 : 0) unless check_nil([op1, op2])
+  end
+end
+
+# Forth Over operation
+class ForthOver < ForthWord
+  def eval(interpreter)
+    op1 = interpreter.stack.pop
+    op2 = interpreter.stack.pop
+    interpreter.stack.insert(-1, op1, op2, op1) unless check_nil([op1, op2])
+  end
+end
+
+# Forth Rot operation
+class ForthRot < ForthWord
+  def eval(interpreter)
+    op1 = interpreter.stack.pop
+    op2 = interpreter.stack.pop
+    op3 = interpreter.stack.pop
+    interpreter.stack.insert(-1, op2, op1, op3) unless check_nil([op1, op2, op3])
+  end
+end
+
+# Forth Swap operation
+class ForthSwap < ForthWord
+  def eval(interpreter)
+    op1 = interpreter.stack.pop
+    op2 = interpreter.stack.pop
+    interpreter.stack.insert(-1, op1, op2) unless check_nil([op1, op2])
+  end
+end
+
 # Contains methods that are used by both ForthIf and ForthDo,
 # and the future ForthBegin once it's implemented.
-class ForthObj
-  def initialize(source, bad_on_empty)
+class ForthAdvObj < ForthObj
+  def initialize(source, bad_on_empty, *)
+    super()
     @source = source
     @good = true
     @bad_on_empty = bad_on_empty
@@ -211,8 +288,8 @@ class ForthObj
   # IF, DO, or BEGIN it puts in the corresponding object instead.
   def add_to_block(block, word, line)
     begin
-      new_word = Object.const_get("Forth#{word.capitalize}").new(@source, @bad_on_empty)
-      line = new_word.read_line(line)
+      new_word = Object.const_get("Forth#{word.capitalize}").new(line, @source, @bad_on_empty)
+      line = new_word.remainder
       block << new_word
     # if the above fails, it's a normal word.
     rescue NameError
@@ -229,15 +306,16 @@ end
 # If another IF is encountered, creates a new ForthIf class,
 # and starts it parsing on the rest of the line, resuming it's
 # own parsing where that IF left off.
-class ForthIf < ForthObj
+class ForthIf < ForthAdvObj
   # takes in fail_on_empty, which tells the IF what to
   # do if it encounters an empty line. If it's true,
   # it sets @good to false. If it's false, it will keep
   # looking for more lines to read until it finds a THEN.
-  def initialize(source, bad_on_empty)
+  def initialize(line, source, bad_on_empty)
     super(source, bad_on_empty)
     @true_block = []
     @false_block = []
+    @remainder = read_true(line)
   end
 
   def eval(interpreter)
@@ -286,10 +364,11 @@ end
 # for the loop. (End non-inclusive) From this it builds the sequence
 # of blocks needed to execute the loop. For each iteration, it duplicates
 # the base block, and replaces any I in the block with the current iteration value.
-class ForthDo < ForthObj
-  def initialize(source, bad_on_empty)
+class ForthDo < ForthAdvObj
+  def initialize(line, source, bad_on_empty)
     super(source, bad_on_empty)
     @block = []
+    @remainder = read_until(line, @block, 'loop')
   end
 
   def read_line(line)
@@ -321,10 +400,11 @@ end
 # Implements a BEGIN loop. Reads into the block until an UNTIL is found.
 # Evaluates by repeatedy popping a value off the stack and evaluating
 # its block until the value is non-zero.
-class ForthBegin < ForthObj
-  def initialize(source, bad_on_empty)
+class ForthBegin < ForthAdvObj
+  def initialize(line, source, bad_on_empty)
     super(source, bad_on_empty)
     @block = []
+    @remainder = read_until(line, @block, 'until')
   end
 
   def read_line(line)

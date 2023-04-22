@@ -214,8 +214,8 @@ class ForthInterpreter
   def dispatch(word, line, bad_on_empty)
     if @func_map.key?((word = word.downcase))
       @func_map.fetch(word).call(line)
-    elsif %w[do if begin].include?(word)
-      eval_obj(Object.const_get("Forth#{word.capitalize}"), line, bad_on_empty)
+    elsif (new_obj = klass("Forth#{word.capitalize}"))
+      eval_obj(new_obj, line, bad_on_empty)
     else
       eval_word(word)
       line
@@ -228,10 +228,8 @@ class ForthInterpreter
   end
 
   def eval_obj(obj, line, bad_on_empty)
-    new_obj = obj.new(@source, bad_on_empty)
-    line = new_obj.read_line(line)
-    new_obj.eval(self)
-    line
+    (new_obj = obj.new(line, @source, bad_on_empty)).eval(self)
+    new_obj.remainder
   end
 
   # evaluate lines until the ":", at which point initialize a new word
@@ -261,5 +259,11 @@ class ForthInterpreter
 
     @user_words[name].push(word)
     read_word(line, name)
+  end
+
+  def klass(class_name)
+    Module.const_get(class_name)
+  rescue NameError
+    nil
   end
 end
