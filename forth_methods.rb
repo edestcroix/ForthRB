@@ -528,7 +528,7 @@ class ForthDo < ForthAdvObj
   # and interpret the block using the interprer
   def do_loop(interpreter, start, limit)
     (start..limit - 1).each do |i|
-      run_block = @block.dup.map { |weeeee| weeeee.is_a?(String) && weeeee.downcase == 'i' ? i.to_s : weeeee }
+      run_block = @block.dup.map { |w| w.is_a?(String) && w.downcase == 'i' ? i.to_s : w }
       interpreter.interpret_line(run_block, true)
     end
   end
