@@ -186,6 +186,13 @@ class ForthDump < ForthWord
   end
 end
 
+# Forth Dup operation
+class ForthDup < ForthWord
+  def eval(interpreter)
+    interpreter.stack.push(interpreter.stack.last)
+  end
+end
+
 # Forth Emit operation
 class ForthEmit < ForthWord
   def eval(interpreter)
