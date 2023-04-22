@@ -124,6 +124,8 @@ class ForthInterpreter
     return warn "#{SYNTAX} ';' without opening ':'" if word == ';'
     return warn "#{SYNTAX} 'LOOP' without opening 'DO'" if word == 'loop'
     return warn "#{SYNTAX} '#{word.upcase}' without opening 'IF'" if %w[else then].include?(word)
+
+    warn "#{BAD_WORD} Unknown word '#{word}'"
   end
 
   def name(word)
