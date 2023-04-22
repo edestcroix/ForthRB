@@ -558,6 +558,9 @@ class ForthBegin < ForthAdvObj
   end
 end
 
+# Creates a user defined word. Reads in the name of the word,
+# then copies the input as-is into @block. On eval, updates the
+# interpreter's user_words hash with the new name and block.
 class ForthWordDef < ForthAdvObj
   def initialize(line, source, *)
     super(source, false)
