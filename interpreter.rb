@@ -47,15 +47,7 @@ class ForthInterpreter
                     '."' => 'string', '(' => 'comment', '!' => 'set_var', '@' => 'get_var', ':' => 'word_def' }
   end
 
-  # starting here, a line is read in from stdin. From this point, various recursive calls
-  # are made to parse the line and evaluate it. The main function, interpret_line,
-  # recursively iterates over the input line, and in the basic case just calls eval_word
-  # to perform a simple action on the stack. If it is something more complicated like a
-  # comment or string, it calls another method, which reads the line the same way as
-  # interpret_line, but performs different actions. When these functions find the word
-  # that terminates the block they are reading, they return whatever is after back out,
-  # and another recursive interpret_line call is made on whatever comes after.
-
+  # runs the interpreter on the source provided on creation.
   def interpret
     while (line = @source.gets(print: true))
       %W[quit\n exit\n].include?(line) ? exit(0) : interpret_line(line.split, false)
@@ -70,15 +62,11 @@ class ForthInterpreter
     return if invalid_line?(line)
 
     if (w = line.shift).is_a?(ForthObj)
-      # pass self to the object so it can call interpret_line
-      # however it wants. (E.g a Do Loop will call it multiple times,
-      # an IF will call it on either it's true or false block.)
       w.eval(self)
     elsif @user_words.key?(w.downcase.to_sym)
-      # eval_user_word consumes its input. Have to clone it.
       interpret_line(@user_words[w.downcase.to_sym].dup, true)
     else
-      line = dispatch(w, line, bad_on_empty)
+      line = eval_word(w, line, bad_on_empty)
     end
     interpret_line(line, bad_on_empty)
   end
@@ -97,7 +85,7 @@ class ForthInterpreter
   end
 
   # Calls the appropriate function based on the word.
-  def dispatch(word, line, bad_on_empty)
+  def eval_word(word, line, bad_on_empty)
     if (new_obj = klass(name(word)))
       eval_obj(new_obj, line, bad_on_empty)
     else
@@ -128,6 +116,11 @@ class ForthInterpreter
     warn "#{BAD_WORD} Unknown word '#{word}'"
   end
 
+  # Converts a word string into a class name. Prevents using
+  # class names directly in the interpreter, by only allowing words from the symbol
+  # map or the keywords list. In the case of the symbol map, does not allow the
+  # converted value to be used directly. (I.e + -> add, but if word is 'add' it
+  # will not be converted to 'ForthAdd', onky '+' will.)
   def name(word)
     word = if (w = @symbol_map[word.downcase])
              w
