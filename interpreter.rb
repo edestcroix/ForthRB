@@ -34,40 +34,6 @@ module ForthEvaluators
   def func_map
     { ':' => proc { |x| create_word(x) } }
   end
-
-  # Evaluates basic Forth words. (I.e the default single word operators,
-  # not strings, IF's, word defs, etc.) Pushes numbers onto the stack, evals
-  # the word on the stack if the word is present in either the symbol_map or
-  # in the keywords list. Otherwise sends the appropriate error message.
-  def eval_word(word)
-    if word.to_i.to_s == word
-      @stack.push(word.to_i)
-    elsif @symbol_map.key?(word)
-      @stack.send(@symbol_map[word].to_sym)
-    elsif @heap.defined?(word)
-      @stack.push(@heap.get_address(word))
-    elsif @constants.key?(word.to_sym)
-      @stack.push(@constants[word.to_sym])
-    elsif valid_word(word)
-      @stack.send(word.to_sym)
-    end
-  end
-
-  private
-
-  # checks if the word is a valid word. This is done to make sure keywords that are Ruby array
-  # methods don't get called. (Before eval_word just tested for stack.respond_to?
-  # which caused problems) Only checks for specific keywords, because at this point
-  # it has already been checked for being a user word, or a number or symbol.
-  def valid_word(word)
-    return false if word.nil?
-    return warn "#{SYNTAX} ';' without opening ':'" if word == ';'
-    return warn "#{SYNTAX} 'LOOP' without opening 'DO'" if word == 'loop'
-    return warn "#{SYNTAX} '#{word.upcase}' without opening 'IF'" if %w[else then].include?(word)
-    return warn "#{BAD_WORD} Unknown word '#{word}'" unless @keywords.include?(word)
-
-    true
-  end
 end
 
 # Main interpreter class. Holds the stack, and the dictionary of
@@ -144,16 +110,34 @@ class ForthInterpreter
 
   # Calls the appropriate function based on the word.
   def dispatch(word, line, bad_on_empty)
-    w = word
-
-    if @func_map.key?((w = w.downcase))
-      @func_map.fetch(w).call(line)
-    elsif (new_obj = klass(name(w)))
+    if @func_map.key?(word.downcase)
+      @func_map.fetch(word).call(line)
+    elsif (new_obj = klass(name(word)))
       eval_obj(new_obj, line, bad_on_empty)
     else
-      eval_word(w)
+      eval_value(word)
       line
     end
+  end
+
+  # Handles 'value' type words. I.e numbers, variables, or constants that need to be pushed to the stack.
+  def eval_value(word)
+    if word.to_i.to_s == word
+      @stack.push(word.to_i)
+    elsif @heap.defined?(word)
+      @stack.push(@heap.get_address(word))
+    elsif @constants.key?(word.to_sym)
+      @stack.push(@constants[word.to_sym])
+    else
+      invalid_word(word)
+    end
+  end
+
+  # Sends the appropriate warning message based on the word.
+  def invalid_word(word)
+    return warn "#{SYNTAX} ';' without opening ':'" if word == ';'
+    return warn "#{SYNTAX} 'LOOP' without opening 'DO'" if word == 'loop'
+    return warn "#{SYNTAX} '#{word.upcase}' without opening 'IF'" if %w[else then].include?(word)
   end
 
   def name(word)
