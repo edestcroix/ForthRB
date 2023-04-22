@@ -77,12 +77,12 @@ class ForthWord < ForthObj
 
   private
 
-  def check_nil(ops)
+  def check_nil(ops, stack)
     ops.each do |op|
       next unless op.nil?
 
       warn "#{STACK_UNDERFLOW} #{ops}"
-      ops.reverse.each { |o| o.nil? ? nil : push(o) }
+      ops.reverse.each { |o| o.nil? ? nil : stack.push(o) }
       return true
     end
     false
@@ -106,14 +106,14 @@ class ForthMath < ForthWord
   def mathop(stack)
     op1 = stack.pop
     op2 = stack.pop
-    return if check_nil([op1, op2])
+    return if check_nil([op1, op2], stack)
 
     result = begin
       op2.send(@opr, op1)
     rescue ZeroDivisionError
       0
     end
-    stack << result unless check_nil([op1, op2])
+    stack << result unless check_nil([op1, op2], stack)
   end
 end
 
@@ -184,7 +184,7 @@ end
 class ForthDot < ForthWord
   def eval(interpreter)
     op = interpreter.stack.pop
-    print "#{op} " unless check_nil([op])
+    print "#{op} " unless check_nil([op], interpreter.stack)
   end
 end
 
@@ -215,7 +215,7 @@ class ForthEmit < ForthWord
   def eval(interpreter)
     # print ASCII of the top of the stack
     op = interpreter.stack.pop
-    print "#{op.to_s[0].codepoints} " unless check_nil([op])
+    print "#{op.to_s[0].codepoints} " unless check_nil([op], interpreter.stack)
   end
 end
 
@@ -224,7 +224,7 @@ class ForthEqual < ForthWord
   def eval(interpreter)
     op1 = interpreter.stack.pop
     op2 = interpreter.stack.pop
-    (interpreter.stack.push op1 == op2 ? -1 : 0) unless check_nil([op1, op2])
+    (interpreter.stack << op1 == op2 ? -1 : 0) unless check_nil([op1, op2], interpreter.stack)
   end
 end
 
@@ -233,7 +233,7 @@ class ForthGreater < ForthWord
   def eval(interpreter)
     op1 = interpreter.stack.pop
     op2 = interpreter.stack.pop
-    (interpreter.stack.push op2 > op1 ? -1 : 0) unless check_nil([op1, op2])
+    (interpreter.stack << op2 > op1 ? -1 : 0) unless check_nil([op1, op2], interpreter.stack)
   end
 end
 
@@ -249,7 +249,7 @@ class ForthLesser < ForthWord
   def eval(interpreter)
     op1 = interpreter.stack.pop
     op2 = interpreter.stack.pop
-    (interpreter.stack.push op2 < op1 ? -1 : 0) unless check_nil([op1, op2])
+    (interpreter.stack << op2 < op1 ? -1 : 0) unless check_nil([op1, op2], interpreter.stack)
   end
 end
 
@@ -258,7 +258,7 @@ class ForthOver < ForthWord
   def eval(interpreter)
     op1 = interpreter.stack.pop
     op2 = interpreter.stack.pop
-    interpreter.stack.insert(-1, op1, op2, op1) unless check_nil([op1, op2])
+    interpreter.stack.insert(-1, op1, op2, op1) unless check_nil([op1, op2], interpreter.stack)
   end
 end
 
@@ -268,7 +268,7 @@ class ForthRot < ForthWord
     op1 = interpreter.stack.pop
     op2 = interpreter.stack.pop
     op3 = interpreter.stack.pop
-    interpreter.stack.insert(-1, op2, op1, op3) unless check_nil([op1, op2, op3])
+    interpreter.stack.insert(-1, op2, op1, op3) unless check_nil([op1, op2, op3], interpreter.stack)
   end
 end
 
@@ -277,7 +277,7 @@ class ForthSwap < ForthWord
   def eval(interpreter)
     op1 = interpreter.stack.pop
     op2 = interpreter.stack.pop
-    interpreter.stack.insert(-1, op1, op2) unless check_nil([op1, op2])
+    interpreter.stack.insert(-1, op1, op2) unless check_nil([op1, op2], interpreter.stack)
   end
 end
 
