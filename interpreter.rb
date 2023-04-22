@@ -26,16 +26,6 @@ class Source
   end
 end
 
-# Methods for the ForthInterpreter that handle word evaluation, other
-# than custom word definitions. Moved to a module so rufocop
-# would stop complaining about the class being too long.
-module ForthEvaluators
-  # maps the various types of words to their respective functions.
-  def func_map
-    { ':' => proc { |x| create_word(x) } }
-  end
-end
-
 # Main interpreter class. Holds the stack, and the dictionary of
 # user defined words. The dictionary is a hash of words to arrays
 # of words. Two methods are public: interpret and interpret_line.
@@ -43,8 +33,7 @@ end
 # from the source definied on creation. interpret_line takes
 # an array of words and evaluates them on the stack.
 class ForthInterpreter
-  include ForthEvaluators
-  attr_reader :stack, :heap, :constants
+  attr_reader :stack, :heap, :constants, :user_words
 
   def initialize(source)
     @source = source
@@ -52,11 +41,10 @@ class ForthInterpreter
     @heap = ForthHeap.new
     @constants = {}
     @user_words = {}
-    @func_map = func_map
     @keywords = %w[cr drop dump dup emit invert over rot swap variable constant allot cells if do begin]
     @symbol_map = { '+' => 'add', '-' => 'sub', '*' => 'mul', '/' => 'div',
                     '=' => 'equal', '.' => 'dot', '<' => 'lesser', '>' => 'greater',
-                    '."' => 'string', '(' => 'comment', '!' => 'set_var', '@' => 'get_var' }
+                    '."' => 'string', '(' => 'comment', '!' => 'set_var', '@' => 'get_var', ':' => 'word_def' }
   end
 
   # starting here, a line is read in from stdin. From this point, various recursive calls
@@ -110,9 +98,7 @@ class ForthInterpreter
 
   # Calls the appropriate function based on the word.
   def dispatch(word, line, bad_on_empty)
-    if @func_map.key?(word.downcase)
-      @func_map.fetch(word).call(line)
-    elsif (new_obj = klass(name(word)))
+    if (new_obj = klass(name(word)))
       eval_obj(new_obj, line, bad_on_empty)
     else
       eval_value(word)
@@ -154,35 +140,6 @@ class ForthInterpreter
   def eval_obj(obj, line, bad_on_empty)
     (new_obj = obj.new(line, @source, bad_on_empty)).eval(self)
     new_obj.remainder
-  end
-
-  # evaluate lines until the ":", at which point initialize a new word
-  # with the next element in the line as the key, then read every
-  # word until a ";" is found into the user_words hash.
-  def create_word(line)
-    return warn "#{BAD_DEF} Empty word definition" if line.empty?
-
-    name = line[0].downcase.to_sym
-    # This blocks overwriting system keywords, while still allowing
-    # for user defined words to be overwritten.
-    if system?(name) && !@user_words.key?(name)
-      warn "#{BAD_DEF} Word already defined: #{name}"
-    else
-      @user_words.store(name, [])
-      read_word(line[1..], name)
-    end
-  end
-
-  # read words from stdin until a ';', storing
-  # each word in the user_words hash under 'name'
-  def read_word(line, name)
-    read_word(@source.gets.split, name) if line.empty?
-    word = line.shift
-    return line if word == ';'
-    return [] if word.nil?
-
-    @user_words[name].push(word)
-    read_word(line, name)
   end
 
   def klass(class_name)

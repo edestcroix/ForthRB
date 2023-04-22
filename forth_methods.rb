@@ -320,7 +320,7 @@ class ForthGetVar < ForthWord
 
   def eval(interpreter)
     return warn STACK_UNDERFLOW unless (addr = interpreter.stack.pop)
-    
+
     interpreter.stack << interpreter.heap.get(addr)
   end
 end
@@ -410,6 +410,8 @@ class ForthAdvObj < ForthObj
     @bad_on_empty = bad_on_empty
   end
 
+  private
+
   def read_until(line, block, end_word)
     if @bad_on_empty && line.empty?
       @good = false
@@ -424,8 +426,6 @@ class ForthAdvObj < ForthObj
 
     read_until(add_to_block(block, word, line), block, end_word)
   end
-
-  private
 
   # adds words into a block of the class. If the word the beginning of an
   # IF, DO, or BEGIN it puts in the corresponding object instead.
@@ -522,6 +522,8 @@ class ForthDo < ForthAdvObj
     do_loop(interpreter, start, limit)
   end
 
+  private
+
   # for each iteration from start to limit, set I to the current value,
   # and interpret the block using the interprer
   def do_loop(interpreter, start, limit)
@@ -553,5 +555,42 @@ class ForthBegin < ForthAdvObj
       top = interpreter.stack.pop
       return warn STACK_UNDERFLOW if top.nil?
     end
+  end
+end
+
+class ForthWordDef < ForthAdvObj
+  def initialize(line, source, *)
+    super(source, false)
+    @block = []
+    @remainder = create_word(line)
+  end
+
+  def eval(interpeter)
+    return warn "#{BAD_DEF} No name given" if @name.nil?
+    return warn "#{BAD_DEF} Word already defined: #{@name}"\
+    if interpeter.system?(@name) && !interpeter.user_words.key?(@name)
+
+    interpeter.user_words[@name] = @block
+  end
+
+  private
+
+  def create_word(line)
+    return if line.empty?
+
+    @name = line[0].downcase.to_sym
+    read_word(line[1..])
+  end
+
+  # read words from stdin until a ';', storing
+  # each word in the user_words hash under 'name'
+  def read_word(line)
+    read_word(@source.gets.split) if line.empty?
+    word = line.shift
+    return line if word == ';'
+    return [] if word.nil?
+
+    @block.push(word)
+    read_word(line)
   end
 end
