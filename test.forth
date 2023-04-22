@@ -30,3 +30,5 @@ VARIABLE numbers 3 CELLS ALLOT
 2 CELLS numbers + ?
 3 CONSTANT third
 third CELLS numbers + ?
+
+3 0 DO 3 0 DO  3 . LOOP LOOP
