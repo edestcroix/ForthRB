@@ -280,8 +280,12 @@ class ForthString < ForthObj
   def initialize(line, *)
     super()
     @good = line.include?('"')
-    @remainder = line[line.index('"') + 1..] if @good
-    @string = line[0..line.index('"') - 1] if @good
+    if @good
+      @remainder = line[line.index('"') + 1..]
+      @string = line[0..line.index('"') - 1]
+    else
+      @remainder = []
+    end
   end
 
   def eval(*)
@@ -296,11 +300,17 @@ class ForthComment < ForthObj
   def initialize(line, *)
     super()
     @good = line.include?(')')
-    @remainder = line[line.index(')') + 1..] if @good
-    @string = line[0..line.index(')') - 1] if @good
+    if @good
+      @remainder = line[line.index(')') + 1..]
+      @string = line[0..line.index(')') - 1]
+    else
+      @remainder = []
+    end
   end
 
-  def eval(*) end
+  def eval(*)
+    return warn "#{SYNTAX} No closing ')' found" unless @good
+  end
 end
 
 # On eval, pushes the value in the heap at the address on the
