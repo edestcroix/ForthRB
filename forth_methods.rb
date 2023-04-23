@@ -287,7 +287,7 @@ class ForthString < ForthObj
   def eval(*)
     return warn "#{SYNTAX} No closing '\"' found" unless @good
 
-    puts @string
+    print "#{@string.join(' ')} "
   end
 end
 
