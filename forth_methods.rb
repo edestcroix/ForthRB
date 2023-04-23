@@ -405,18 +405,15 @@ class ForthAdvObj < ForthObj
   private
 
   def read_until(line, block, end_word)
-    if @bad_on_empty && line.empty?
-      @good = false
-      return []
+    while (word = line.shift).downcase != end_word
+      if @bad_on_empty && line.empty?
+        @good = false
+        return []
+      end
+      line = add_to_block(block, word, line)
+      line = @source.gets.split if line.empty? && !@bad_on_empty
     end
-    return read_until(@source.gets.split, block, end_word) if line.empty?
-
-    word = line.shift
-    return [] if word.nil?
-
-    return line if word.downcase == end_word
-
-    read_until(add_to_block(block, word, line), block, end_word)
+    line
   end
 
   # adds words into a block of the class. If the word the beginning of an
@@ -467,26 +464,16 @@ class ForthIf < ForthAdvObj
   private
 
   def read_true(line)
-    # set @good to false if we're expecting a line and we get an empty line
-    # If the IF being created is in a user defined word,
-    # there should be a THEN statement before the end of the line.
-    # If there isn't, the IF is not good, and since we are in
-    # a user defined word, we should warn instead of trying to
-    # read more lines from stdin.
-    if @bad_on_empty && line.empty?
-      @good = false
-      return []
+    while (word = line.shift).downcase != 'then'
+      if @bad_on_empty && line.empty?
+        @good = false
+        return []
+      end
+      return read_until(line, @false_block, 'then') if word.downcase == 'else'
+      line = add_to_block(@true_block, word, line)
+      line = @source.gets.split if line.empty? && !@bad_on_empty
     end
-
-    return read_true(@source.gets.split) if line.empty?
-
-    word = line.shift
-    return [] if word.nil?
-
-    return line if word.downcase == 'then'
-    return read_until(line, @false_block, 'then') if word.downcase == 'else'
-
-    read_true(add_to_block(@true_block, word, line))
+    line
   end
 end
 
@@ -571,21 +558,13 @@ class ForthWordDef < ForthAdvObj
   private
 
   def create_word(line)
-    return if line.empty?
+    return line if line.empty?
 
-    @name = line[0].downcase.to_sym
-    read_word(line[1..])
-  end
-
-  # read words from stdin until a ';', storing
-  # each word in the user_words hash under 'name'
-  def read_word(line)
-    read_word(@source.gets.split) if line.empty?
-    word = line.shift
-    return line if word == ';'
-    return [] if word.nil?
-
-    @block.push(word)
-    read_word(line)
+    @name = line.shift.downcase.to_sym
+    while (word = line.shift) != ';'
+      @block.push(word)
+      line = @source.gets.split if line.empty?
+    end
+    line
   end
 end

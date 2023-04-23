@@ -57,20 +57,23 @@ class ForthInterpreter
 
   # Interprets a line of Forth code. line is an array of words.
   # bad_on_empty determines whether parsers should warn if they find an empty line,
-  # or keep reading from stdin until the reach their terminating words.
+  # or keep reading from stdin until they reach their terminating words.
   def interpret_line(line, bad_on_empty)
-    return if invalid_line?(line)
-
-    if (w = line.shift).is_a?(ForthObj)
-      w.eval(self)
-    elsif @user_words.key?(w.downcase.to_sym)
-      interpret_line(@user_words[w.downcase.to_sym].dup, true)
-    else
-      line = eval_word(w, line, bad_on_empty)
+    while (w = line.shift)
+      # if eval_word sets l to a non-nil value, update line to l as
+      # l stores the remainder of the line after the word was evaluated.
+      if (l = eval_word(w, line, bad_on_empty))
+        line = l
+      elsif @user_words.key?(w.downcase.to_sym)
+        interpret_line(@user_words[w.downcase.to_sym].dup, true)
+      else
+        eval_value(w)
+      end
     end
-    interpret_line(line, bad_on_empty)
   end
 
+  # Identifies if a word is a system word, or a user defined word,
+  # to prevent word or variable definitions overwriting system ones.
   def system?(word)
     @keywords.include?(word) || @symbol_map.key?(word)\
     || @user_words.key?(word.to_sym) || @constants.key?(word)
@@ -78,19 +81,17 @@ class ForthInterpreter
 
   private
 
-  # putting this here instead of just having in interpret_line directly
-  # stopped rufocop from having a hissy fit for ABC complexity so I've left it.
-  def invalid_line?(line)
-    line.nil? || line.empty?
-  end
-
-  # Calls the appropriate function based on the word.
+  # Evaluates a word object. Evaluates directly if the word is
+  # already an object, otherwise creates and evaluates an object
+  # based on the string name of the word.
   def eval_word(word, line, bad_on_empty)
-    if (new_obj = klass(name(word)))
-      eval_obj(new_obj, line, bad_on_empty)
-    else
-      eval_value(word)
+    if word.is_a?(ForthObj)
+      word.eval(self)
       line
+    elsif (obj = klass(name(word)))
+      obj = obj.new(line, @source, bad_on_empty)
+      obj.eval(self)
+      obj.remainder
     end
   end
 
@@ -121,7 +122,7 @@ class ForthInterpreter
   # class names directly in the interpreter, by only allowing words from the symbol
   # map or the keywords list. In the case of the symbol map, does not allow the
   # converted value to be used directly. (I.e + -> add, but if word is 'add' it
-  # will not be converted to 'ForthAdd', onky '+' will.)
+  # will not be converted to 'ForthAdd', only '+' will.)
   def name(word)
     word = if (w = @symbol_map[word.downcase])
              w
@@ -133,11 +134,8 @@ class ForthInterpreter
     "Forth#{word.split('_').map!(&:capitalize).join('')}"
   end
 
-  def eval_obj(obj, line, bad_on_empty)
-    (new_obj = obj.new(line, @source, bad_on_empty)).eval(self)
-    new_obj.remainder
-  end
-
+  # Handles converting a string into a class name, with
+  # error handling for non-existant classes
   def klass(class_name)
     Module.const_get(class_name)
   rescue NameError
