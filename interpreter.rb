@@ -67,7 +67,7 @@ class ForthInterpreter
       elsif @user_words.key?(w.downcase.to_sym)
         interpret_line(@user_words[w.downcase.to_sym].dup, true)
       else
-        eval_value(w)
+        eval_value(w.downcase)
       end
     end
   end

@@ -405,24 +405,36 @@ class ForthAdvObj < ForthObj
   private
 
   def read_until(line, block, end_word)
-    while (word = line.shift).downcase != end_word
-      if @bad_on_empty && line.empty?
-        @good = false
-        return []
-      end
-      line = add_to_block(block, word, line)
+    loop do
       line = @source.gets.split if line.empty? && !@bad_on_empty
+      return [] unless check_good(line)
+      break if (word = line.shift).downcase == end_word
+
+      line = add_to_block(block, word, line)
     end
     line
   end
 
+  def check_good(line)
+    if @bad_on_empty && line.empty?
+      @good = false
+      false
+    else
+      true
+    end
+  end
+
   # adds words into a block of the class. If the word the beginning of an
-  # IF, DO, or BEGIN it puts in the corresponding object instead.
+  # IF, DO, or BEGIN it parses it into an object. This way, nested IFs, DOs,
+  # and BEGINS work correctly. Otherwise, for example, the outermost IF
+  # will eat the first THEN it sees, even though that THEN was for an IF inside it.
   def add_to_block(block, word, line)
     begin
-      new_word = Object.const_get("Forth#{word.capitalize}").new(line, @source, @bad_on_empty)
-      line = new_word.remainder
-      block << new_word
+      if %w[if do begin].include?(word.downcase)
+        word = Object.const_get("Forth#{word.capitalize}").new(line, @source, @bad_on_empty)
+        line = new_word.remainder
+      end
+      block << word
     # if the above fails, it's a normal word.
     rescue NameError
       block << word
@@ -464,14 +476,13 @@ class ForthIf < ForthAdvObj
   private
 
   def read_true(line)
-    while (word = line.shift).downcase != 'then'
-      if @bad_on_empty && line.empty?
-        @good = false
-        return []
-      end
-      return read_until(line, @false_block, 'then') if word.downcase == 'else'
-      line = add_to_block(@true_block, word, line)
+    loop do
       line = @source.gets.split if line.empty? && !@bad_on_empty
+      return [] unless check_good(line)
+      return read_until(line, @false_block, 'then') if (word = line.shift).downcase == 'else'
+      break if word.downcase == 'then'
+
+      line = add_to_block(@true_block, word, line)
     end
     line
   end
@@ -494,7 +505,7 @@ class ForthDo < ForthAdvObj
 
     start = interpreter.stack.pop
     limit = interpreter.stack.pop
-    return warn "#{STACK_UNDERFLOW} #{[start, limit]}" if start.nil? || limit.nil?
+    return warn "#{STACK_UNDERFLOW} #{[limit, start]}" if start.nil? || limit.nil?
     return warn "#{BAD_LOOP} Invalid loop range" if start.negative? || limit.negative?
     return warn "#{BAD_LOOP} Invalid loop range" if start > limit
 
@@ -562,7 +573,7 @@ class ForthWordDef < ForthAdvObj
 
     @name = line.shift.downcase.to_sym
     while (word = line.shift) != ';'
-      @block.push(word)
+      @block.push(word) if word
       line = @source.gets.split if line.empty?
     end
     line
