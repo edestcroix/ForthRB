@@ -18,10 +18,10 @@ class Source
   end
 
   def gets(prompt: false)
-    # only print the prompt if print is true
     print '> ' if prompt && !@print_line
     line = @source.gets
-    puts "> #{line}" if @print_line
+    puts "> #{line}" if @print_line && prompt
+    puts line if @print_line && !prompt
     line
   end
 end
