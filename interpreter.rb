@@ -111,6 +111,7 @@ class ForthInterpreter
   def invalid_word(word)
     return warn "#{SYNTAX} ';' without opening ':'" if word == ';'
     return warn "#{SYNTAX} 'LOOP' without opening 'DO'" if word == 'loop'
+    return warn "#{SYNTAX} 'UNTIL' without opening 'BEGIN'" if word == 'until'
     return warn "#{SYNTAX} '#{word.upcase}' without opening 'IF'" if %w[else then].include?(word)
 
     warn "#{BAD_WORD} Unknown word '#{word}'"
