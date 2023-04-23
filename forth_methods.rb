@@ -547,13 +547,14 @@ class ForthBegin < ForthAdvObj
   def eval(interpreter)
     return warn "#{SYNTAX} 'BEGIN' without closing 'UNTIL'" unless @good
 
-    top = interpreter.stack.pop
-    return warn STACK_UNDERFLOW if top.nil?
-
-    while top.zero?
+    # This should be the equivalent of the UNTIL popping the stack
+    # and restarting at the BEGIN if non-zero.
+    loop do
       interpreter.interpret_line(@block.dup, true)
+
       top = interpreter.stack.pop
       return warn STACK_UNDERFLOW if top.nil?
+      break unless top.zero?
     end
   end
 end
