@@ -273,46 +273,6 @@ class ForthSwap < ForthWord
   end
 end
 
-# Forth String. On eval, prints the line up to the first "
-# character. Sets @remainder to the line after the ". If
-# there is no ", it raises a warning on eval.
-class ForthString < ForthObj
-  def initialize(line, *)
-    super()
-    @good = line.include?('"')
-    if @good
-      @remainder = line[line.index('"') + 1..]
-      @string = line[0..line.index('"') - 1]
-    else
-      @remainder = []
-    end
-  end
-
-  def eval(*)
-    return warn "#{SYNTAX} No closing '\"' found" unless @good
-
-    print "#{@string.join(' ')} "
-  end
-end
-
-# Forth Comment. Behaves the same as ForthString, except doesn't print anything.
-class ForthComment < ForthObj
-  def initialize(line, *)
-    super()
-    @good = line.include?(')')
-    if @good
-      @remainder = line[line.index(')') + 1..]
-      @string = line[0..line.index(')') - 1]
-    else
-      @remainder = []
-    end
-  end
-
-  def eval(*)
-    return warn "#{SYNTAX} No closing ')' found" unless @good
-  end
-end
-
 # On eval, pushes the value in the heap at the address on the
 # top of the stack to the top of the stack.
 class ForthGetVar < ForthWord
@@ -402,9 +362,8 @@ class ForthCells < ForthWord
   def eval(*) end
 end
 
-# Contains methods that are used by both ForthIf and ForthDo,
-# and the future ForthBegin once it's implemented.
-class ForthAdvObj < ForthObj
+# Parent class for Forth Words that can span multiple lines.
+class ForthMultiLine < ForthObj
   def initialize(source, bad_on_empty, *)
     super()
     @source = source
@@ -415,12 +374,11 @@ class ForthAdvObj < ForthObj
   private
 
   def read_until(line, block, end_word)
-    loop do
+    while (word = line.shift) != end_word
       line = @source.gets.split if line.empty? && !@bad_on_empty
       return [] unless check_good(line)
-      break if (word = line.shift).downcase == end_word
 
-      line = add_to_block(block, word, line)
+      block << word
     end
     line
   end
@@ -432,6 +390,75 @@ class ForthAdvObj < ForthObj
     else
       true
     end
+  end
+end
+
+# Forth String. On eval, prints the line up to the first "
+# character. Sets @remainder to the line after the ". If
+# there is no ", it raises a warning on eval when bad_on_empty
+# is true, otherwise it keeps reading until it finds one.
+class ForthString < ForthMultiLine
+  def initialize(line, source, bad_on_empty)
+    super(source, bad_on_empty)
+    @string = []
+    @remainder = read_until(line, @string, '"')
+  end
+
+  def eval(*)
+    return warn "#{SYNTAX} No closing '\"' found" unless @good
+
+    print "#{@string.join(' ')} "
+  end
+end
+
+# Forth Comment. Behaves the same as ForthString, except doesn't print anything.
+class ForthComment < ForthMultiLine
+  def initialize(line, source, bad_on_empty)
+    super(source, bad_on_empty)
+    @comment = []
+    @remainder = read_until(line, @comment, ')')
+  end
+
+  def eval(*)
+    return warn "#{SYNTAX} No closing ')' found" unless @good
+  end
+end
+
+# Creates a user defined word. Reads in the name of the word,
+# then copies the input as-is into @block. On eval, updates the
+# interpreter's user_words hash with the new name and block.
+class ForthWordDef < ForthMultiLine
+  def initialize(line, source, *)
+    super(source, false)
+    @block = []
+    @name = line.shift.downcase.to_sym if line
+    @remainder = read_until(line, @block, ';')
+  end
+
+  def eval(interpeter)
+    return warn "#{BAD_DEF} No name given" if @name.nil?
+    return warn "#{BAD_DEF} Word already defined: #{@name}"\
+    if interpeter.system?(@name) && !interpeter.user_words.key?(@name)
+
+    interpeter.user_words[@name] = @block
+  end
+end
+
+# Parent class for control operators like IF DO, and BEGIN.
+# Shadows it's parent's read_until method, because
+# it needs to handle ForthCntrlObjs differently on read.
+class ForthCntrlObj < ForthMultiLine
+  private
+
+  def read_until(line, block, end_word)
+    loop do
+      line = @source.gets.split if line.empty? && !@bad_on_empty
+      return [] unless check_good(line)
+      break if (word = line.shift).downcase == end_word
+
+      line = add_to_block(block, word, line)
+    end
+    line
   end
 
   # adds words into a block of the class. If the word the beginning of an
@@ -460,7 +487,7 @@ end
 # If another IF is encountered, creates a new ForthIf class,
 # and starts it parsing on the rest of the line, resuming it's
 # own parsing where that IF left off.
-class ForthIf < ForthAdvObj
+class ForthIf < ForthCntrlObj
   # takes in fail_on_empty, which tells the IF what to
   # do if it encounters an empty line. If it's true,
   # it sets @good to false. If it's false, it will keep
@@ -503,7 +530,7 @@ end
 # for the loop. (End non-inclusive) From this it builds the sequence
 # of blocks needed to execute the loop. For each iteration, it duplicates
 # the base block, and replaces any I in the block with the current iteration value.
-class ForthDo < ForthAdvObj
+class ForthDo < ForthCntrlObj
   def initialize(line, source, bad_on_empty)
     super(source, bad_on_empty)
     @block = []
@@ -537,7 +564,7 @@ end
 # Implements a BEGIN loop. Reads into the block until an UNTIL is found.
 # Evaluates by repeatedy popping a value off the stack and evaluating
 # its block until the value is non-zero.
-class ForthBegin < ForthAdvObj
+class ForthBegin < ForthCntrlObj
   def initialize(line, source, bad_on_empty)
     super(source, bad_on_empty)
     @block = []
@@ -556,37 +583,5 @@ class ForthBegin < ForthAdvObj
       return warn STACK_UNDERFLOW if top.nil?
       break unless top.zero?
     end
-  end
-end
-
-# Creates a user defined word. Reads in the name of the word,
-# then copies the input as-is into @block. On eval, updates the
-# interpreter's user_words hash with the new name and block.
-class ForthWordDef < ForthAdvObj
-  def initialize(line, source, *)
-    super(source, false)
-    @block = []
-    @remainder = create_word(line)
-  end
-
-  def eval(interpeter)
-    return warn "#{BAD_DEF} No name given" if @name.nil?
-    return warn "#{BAD_DEF} Word already defined: #{@name}"\
-    if interpeter.system?(@name) && !interpeter.user_words.key?(@name)
-
-    interpeter.user_words[@name] = @block
-  end
-
-  private
-
-  def create_word(line)
-    return line if line.empty?
-
-    @name = line.shift.downcase.to_sym
-    while (word = line.shift) != ';'
-      @block.push(word) if word
-      line = @source.gets.split if line.empty?
-    end
-    line
   end
 end
