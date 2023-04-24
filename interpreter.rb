@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative 'forth_methods'
+require_relative 'forth_classes'
 
 # Source is a wrapper around the input source, so that
 # the interpreter can get its input from an abstracted
@@ -142,3 +142,10 @@ class ForthInterpreter
     nil
   end
 end
+
+source = if (filename = ARGV[0])
+           Source.new(File.open(filename), alt_print: true)
+         else
+           Source.new($stdin)
+         end
+ForthInterpreter.new(source).interpret
