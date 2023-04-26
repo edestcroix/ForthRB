@@ -143,10 +143,3 @@ class ForthInterpreter
     nil
   end
 end
-
-source = if (filename = ARGV[0])
-           Source.new(File.open(filename), alt_print: true)
-         else
-           Source.new($stdin)
-         end
-ForthInterpreter.new(source).interpret
