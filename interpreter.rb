@@ -1,3 +1,4 @@
+#! /usr/bin/env ruby
 # frozen_string_literal: true
 
 require_relative 'forth_classes'
@@ -41,7 +42,7 @@ class ForthInterpreter
     @heap = ForthHeap.new
     @constants = {}
     @user_words = {}
-    @keywords = %w[cr drop dump dup emit invert mod over rot swap variable constant allot cells if do begin]
+    @keywords = %w[cr drop dump dup and or xor emit invert mod over rot swap variable constant allot cells if do begin]
     @symbol_map = { '+' => 'add', '-' => 'sub', '*' => 'mul', '/' => 'div',
                     '=' => 'equal', '.' => 'dot', '<' => 'lesser', '>' => 'greater',
                     '."' => 'string', '(' => 'comment', '!' => 'set_var', '@' => 'get_var', ':' => 'word_def' }
