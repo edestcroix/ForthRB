@@ -10,9 +10,6 @@ A Forth interpreter written in Ruby.
 - `BEGIN ... UNTIL` blocks
 - Variables (`VARIABLE`, `CONSTANT`, `!`, `@`, `ALLOT`, `CELLS`)
 
-## To Be Implemented
-- Better error handling and syntax checking.
-
 ## Running
 The interpreter can be started by calling `./forth` with no arguments.  
 When given an argument, it is assumed to be a filename and the interpreter
