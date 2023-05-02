@@ -378,7 +378,7 @@ class ForthMultiLine < ForthObj
       line = @source.gets.split if line.empty? && !@bad_on_empty
       return [] unless check_good(line)
 
-      block << word
+      block << word if word
     end
     line
   end
