@@ -51,7 +51,6 @@ class ForthInterpreter
   def interpret
     while (line = @source.gets(prompt: true))
       %W[quit\n exit\n].include?(line) ? exit(0) : interpret_line(line.split, false)
-      puts 'ok'
     end
   end
 
