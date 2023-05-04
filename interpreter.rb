@@ -18,10 +18,8 @@ class Source
   end
 
   def gets(prompt: false)
-    print '> ' if prompt && !@print_line
-    line = @source.gets
-    puts "> #{line}" if @print_line && prompt
-    puts line if @print_line && !prompt
+    print '> ' if prompt
+    print line = @source.gets if @print_line
     line
   end
 end
@@ -34,6 +32,9 @@ end
 # an array of words and evaluates them on the stack.
 class ForthInterpreter
   attr_reader :stack, :heap, :constants, :user_words
+  # strings, '.', and eval don't print newlines after they are called, so they instead
+  # update this variable so the interpreter will print one before the next prompt.
+  attr_accessor :newline
 
   def initialize(source)
     @source = source
@@ -51,6 +52,8 @@ class ForthInterpreter
   def interpret
     while (line = @source.gets(prompt: true))
       %W[quit\n exit\n].include?(line) ? exit(0) : interpret_line(line.split, false)
+      puts '' if @newline
+      @newline = false
     end
   end
 

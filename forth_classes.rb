@@ -176,8 +176,10 @@ end
 # Forth . operation (Pops and prints top of stack)
 class ForthDot < ForthWord
   def eval(interpreter)
-    v = interpreter.stack.pop
-    print "#{v} " unless check_nil([v], interpreter.stack)
+    return if check_nil([v = interpreter.stack.pop], interpreter.stack)
+
+    print "#{v} "
+    interpreter.newline = true
   end
 end
 
@@ -199,15 +201,17 @@ end
 # Forth DUP operation. (Duplicates top of stack)
 class ForthDup < ForthWord
   def eval(interpreter)
-    interpreter.stack << (interpreter.stack.last)
+    interpreter.stack << (interpreter.stack.last) unless check_nil([interpreter.stack.last], interpreter.stack)
   end
 end
 
 # Forth EMIT operation. (Prints ASCII of top of stack)
 class ForthEmit < ForthWord
   def eval(interpreter)
-    v = interpreter.stack.pop
-    print "#{v.to_s[0].codepoints} " unless check_nil([v], interpreter.stack)
+    return if check_nil([v = interpreter.stack.pop], interpreter.stack)
+
+    print "#{v.to_s[0].codepoints} "
+    interpreter.newline = true
   end
 end
 
@@ -404,10 +408,11 @@ class ForthString < ForthMultiLine
     @remainder = read_until(line, @string, '"')
   end
 
-  def eval(*)
+  def eval(interpreter)
     return warn "#{SYNTAX} No closing '\"' found" unless @good
 
     print "#{@string.join(' ')} "
+    interpreter.newline = true
   end
 end
 
