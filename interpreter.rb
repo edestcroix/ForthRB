@@ -75,7 +75,7 @@ class ForthInterpreter
     end
   end
 
-  # Identifies if a word is a system word, or a user defined word,
+  # Identifies if a word is a system word or a user defined word,
   # to prevent word or variable definitions overwriting system ones.
   def system?(word)
     @keywords.include?(word) || @symbol_map.key?(word)\
@@ -127,13 +127,9 @@ class ForthInterpreter
   # converted value to be used directly. (I.e + -> add, but if word is 'add' it
   # will not be converted to 'ForthAdd', only '+' will.)
   def name(word)
-    word = if (w = @symbol_map[word.downcase])
-             w
-           elsif !@keywords.include?(word.downcase)
-             'bad'
-           else
-             word
-           end
+    return '' if word.nil? || @symbol_map.value?(word.downcase)
+
+    word = @symbol_map.fetch(word.downcase, word.to_s.gsub('_', ''))
     "Forth#{word.split('_').map!(&:capitalize).join('')}"
   end
 

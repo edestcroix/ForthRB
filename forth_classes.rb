@@ -56,18 +56,15 @@ end
 class ForthObj
   attr_reader :remainder
 
-  def eval(_) end
+  def initialize(*args)
+    @remainder = args[0] if args.length.positive?
+  end
 end
 
 # Parent class for all keyword Forth words. I.e no IFs or strings.
 # Since these only take up a single word in the input, they
 # always set remainder to the input line.
 class ForthWord < ForthObj
-  def initialize(line, *)
-    super()
-    @remainder = line
-  end
-
   private
 
   def check_nil(values, stack)
@@ -85,7 +82,7 @@ end
 # All math operations inherit from this, because the only
 # difference between them is the operator they use.
 class ForthMath < ForthWord
-  def initialize(line, opr)
+  def initialize(line, opr, *)
     super(line)
     @opr = opr
   end
@@ -438,7 +435,7 @@ class ForthWordDef < ForthMultiLine
   def eval(interpeter)
     return warn "#{BAD_DEF} No name given" if @name.nil?
     return warn "#{BAD_DEF} Word already defined: #{@name}"\
-    if interpeter.system?(@name) && !interpeter.user_words.key?(@name)
+    if interpeter.system?(@name.to_s) && !interpeter.user_words.key?(@name)
 
     interpeter.user_words[@name] = @block
   end
