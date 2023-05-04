@@ -56,8 +56,8 @@ end
 class ForthObj
   attr_reader :remainder
 
-  def initialize(*args)
-    @remainder = args[0] if args.length.positive?
+  def initialize(line = nil, *)
+    @remainder = line
   end
 end
 
@@ -277,10 +277,6 @@ end
 # On eval, pushes the value in the heap at the address on the
 # top of the stack to the top of the stack.
 class ForthGetVar < ForthWord
-  def initialize(line, *)
-    super(line)
-  end
-
   def eval(interpreter)
     return warn STACK_UNDERFLOW unless (addr = interpreter.stack.pop)
 
@@ -291,10 +287,6 @@ end
 # On eval, sets the address on the top of the stack to the
 # value on the second to top of the stack.
 class ForthSetVar < ForthWord
-  def initialize(line, *)
-    super(line)
-  end
-
   def eval(interpreter)
     return warn STACK_UNDERFLOW unless (addr = interpreter.stack.pop)
 
@@ -307,9 +299,8 @@ end
 # Parent class for Variable and Constant definition objects.
 class ForthDefine < ForthObj
   def initialize(line, *)
-    super()
     @name = line.shift
-    @remainder = line
+    super(line)
   end
 
   private
@@ -366,7 +357,7 @@ end
 # Parent class for Forth Words that can span multiple lines.
 class ForthMultiLine < ForthObj
   def initialize(line, source, bad_on_empty, end_word: '')
-    super()
+    super
     @source = source
     @good = true
     @bad_on_empty = bad_on_empty
