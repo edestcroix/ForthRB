@@ -19,7 +19,8 @@ class Source
 
   def gets(prompt: false)
     print '> ' if prompt
-    print line = @source.gets if @print_line
+    line = @source.gets
+    print line if @print_line
     line
   end
 end

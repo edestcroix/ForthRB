@@ -56,7 +56,7 @@ end
 class ForthObj
   attr_reader :remainder
 
-  def eval(*) end
+  def eval(_) end
 end
 
 # Parent class for all keyword Forth words. I.e no IFs or strings.
@@ -168,7 +168,7 @@ end
 
 # Forth CR operation (print newline)
 class ForthCr < ForthWord
-  def eval(*)
+  def eval(_)
     puts ''
   end
 end
@@ -363,16 +363,17 @@ end
 
 # Doesn't do anything in this implementation.
 class ForthCells < ForthWord
-  def eval(*) end
+  def eval(_) end
 end
 
 # Parent class for Forth Words that can span multiple lines.
 class ForthMultiLine < ForthObj
-  def initialize(source, bad_on_empty, *)
+  def initialize(line, source, bad_on_empty, end_word: '')
     super()
     @source = source
     @good = true
     @bad_on_empty = bad_on_empty
+    @remainder = read_until(line, @block = [], end_word) if line
   end
 
   private
@@ -402,29 +403,25 @@ end
 # there is no ", it raises a warning on eval when bad_on_empty
 # is true, otherwise it keeps reading until it finds one.
 class ForthString < ForthMultiLine
-  def initialize(line, source, bad_on_empty)
-    super(source, bad_on_empty)
-    @string = []
-    @remainder = read_until(line, @string, '"')
+  def initialize(*args)
+    super(*args, end_word: '"')
   end
 
   def eval(interpreter)
     return warn "#{SYNTAX} No closing '\"' found" unless @good
 
-    print "#{@string.join(' ')} "
+    print "#{@block.join(' ')} "
     interpreter.newline = true
   end
 end
 
 # Forth Comment. Behaves the same as ForthString, except doesn't print anything.
 class ForthComment < ForthMultiLine
-  def initialize(line, source, bad_on_empty)
-    super(source, bad_on_empty)
-    @comment = []
-    @remainder = read_until(line, @comment, ')')
+  def initialize(*args)
+    super(*args, end_word: ')')
   end
 
-  def eval(*)
+  def eval(_)
     return warn "#{SYNTAX} No closing ')' found" unless @good
   end
 end
@@ -434,10 +431,8 @@ end
 # interpreter's user_words hash with the new name and block.
 class ForthWordDef < ForthMultiLine
   def initialize(line, source, *)
-    super(source, false)
-    @block = []
     @name = line.shift.downcase.to_sym if line
-    @remainder = read_until(line, @block, ';')
+    super(line, source, false, end_word: ';')
   end
 
   def eval(interpeter)
@@ -466,39 +461,28 @@ class ForthCntrlObj < ForthMultiLine
     line
   end
 
-  # adds words into a block of the class. If the word the beginning of an
-  # IF, DO, or BEGIN it parses it into an object. This way, nested IFs, DOs,
-  # and BEGINS work correctly. Otherwise, for example, the outermost IF
-  # will eat the first THEN it sees, even though that THEN was for an IF inside it.
+  # adds words into a block of the class. If the word read corresponds to a ForthCntrlObj, creates a
+  # new instance immediately and starts reading into it rather than reading just the strings in.
+  # This is because control objects can be nested, and if they weren't initialized immediately the
+  # outermost object would stop at the first termination word, rather than the outermost (E.g if we
+  # had IF IF THEN THEN, the first IF would stop at the first THEN, instead of the second.)
   def add_to_block(block, word, line)
-    begin
-      if %w[if do begin].include?(word.downcase)
-        word = Object.const_get("Forth#{word.capitalize}").new(line, @source, @bad_on_empty)
-        line = new_word.remainder
-      end
-      block << word
+    block << word = ForthCntrlObj.const_get("Forth#{word.capitalize}").new(line, @source, @bad_on_empty)
+    word.remainder
     # if the above fails, it's a normal word.
-    rescue NameError
-      block << word
-    end
+  rescue NameError
+    block << word
     line
   end
 end
 
-# Holds a forth IF statement. Calling read_line will start parsing
-# the IF statement starting with the line given. Reads into
-# the true_block until an ELSE or THEN is found, then reads into
-# the false_block until a THEN is found if an ELSE was found.
-# If another IF is encountered, creates a new ForthIf class,
-# and starts it parsing on the rest of the line, resuming it's
-# own parsing where that IF left off.
+# Holds a forth IF statement. Calling read_line will start parsing the IF statement starting with
+# the line given. Reads into the true_block until an ELSE or THEN is found, then reads into the
+# false_block until a THEN is found if an ELSE was found. If another IF is encountered, creates a new
+# ForthIf class, and starts it parsing on the rest of the line, resuming it's own parsing where that IF left off.
 class ForthIf < ForthCntrlObj
-  # takes in fail_on_empty, which tells the IF what to
-  # do if it encounters an empty line. If it's true,
-  # it sets @good to false. If it's false, it will keep
-  # looking for more lines to read until it finds a THEN.
   def initialize(line, source, bad_on_empty)
-    super(source, bad_on_empty)
+    super(nil, source, bad_on_empty)
     @true_block = []
     @false_block = []
     @remainder = read_true(line)
@@ -536,10 +520,8 @@ end
 # of blocks needed to execute the loop. For each iteration, it duplicates
 # the base block, and replaces any I in the block with the current iteration value.
 class ForthDo < ForthCntrlObj
-  def initialize(line, source, bad_on_empty)
-    super(source, bad_on_empty)
-    @block = []
-    @remainder = read_until(line, @block, 'loop')
+  def initialize(*args)
+    super(*args, end_word: 'loop')
   end
 
   def eval(interpreter)
@@ -570,10 +552,8 @@ end
 # Evaluates by repeatedy popping a value off the stack and evaluating
 # its block until the value is non-zero.
 class ForthBegin < ForthCntrlObj
-  def initialize(line, source, bad_on_empty)
-    super(source, bad_on_empty)
-    @block = []
-    @remainder = read_until(line, @block, 'until')
+  def initialize(*args)
+    super(*args, end_word: 'until')
   end
 
   def eval(interpreter)
