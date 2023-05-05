@@ -1,5 +1,13 @@
 # frozen_string_literal: true
 
+# Main file containing all the classes for Forth Keywords.
+# All forth classes that do not directly correspond to a Forth keyword, and are not in the symbol_map in
+# ForthInterpreter, have more than one word after Forth. (I.e ForthKeyWord, ForthMathWord, while keywords
+# are ForthDup, ForthIf, etc.) This is because input strings when converted to class names are downcased and
+# can only be converted to multi-word class names if they have underscores deliminating the words, and underscores
+# are removed before converting if the string wasn't from the symbol_map. I.e an input 'dup' would become ForthDup,
+# but keyword becomes ForthKeyword, not ForthKeyWord, and key_word gets converted into keyword first.
+
 SYNTAX =   '[SYNTAX]'
 BAD_TYPE = '[BAD_TYPE]'
 BAD_DEF =  '[BAD_DEF]'
@@ -9,7 +17,7 @@ BAD_ADDRESS = '[BAD_ADDRESS]'
 STACK_UNDERFLOW = '[STACK_UNDERFLOW]'
 
 # Implements a Heap for the ForthInterpreter to store variables in.
-class ForthHeap
+class ForthVarHeap
   def initialize
     @heap = []
     @name_map = {}
@@ -49,11 +57,11 @@ class ForthHeap
 end
 
 # Base class for all Forth objects. All inherit from this so that testing for forth
-# objects is easy, using is_a?(ForthObj). Every object of this type should have one
+# objects is easy, using is_a?(ForthKeyWord). Every object of this type should have one
 # public method, eval(interpreter), that takes an interpreter object and does the
 # operation it represents. All objects should also have a remainder attribute, that
 # is the remainder of the line after the object has been parsed.
-class ForthObj
+class ForthKeyWord
   attr_reader :remainder
 
   def initialize(line = nil, *)
@@ -64,7 +72,7 @@ end
 # Parent class for all keyword Forth words. I.e no IFs or strings.
 # Since these only take up a single word in the input, they
 # always set remainder to the input line.
-class ForthWord < ForthObj
+class ForthBasicWord < ForthKeyWord
   private
 
   def check_nil(values, stack)
@@ -81,7 +89,7 @@ end
 
 # All math operations inherit from this, because the only
 # difference between them is the operator they use.
-class ForthMath < ForthWord
+class ForthMathWord < ForthBasicWord
   def initialize(line, opr, *)
     super(line)
     @opr = opr
@@ -108,70 +116,70 @@ class ForthMath < ForthWord
 end
 
 # Forth + operation
-class ForthAdd < ForthMath
+class ForthAdd < ForthMathWord
   def initialize(line, *)
     super(line, :+)
   end
 end
 
 # Forth - operation
-class ForthSub < ForthMath
+class ForthSub < ForthMathWord
   def initialize(line, *)
     super(line, :-)
   end
 end
 
 # Forth * operation
-class ForthMul < ForthMath
+class ForthMul < ForthMathWord
   def initialize(line, *)
     super(line, :*)
   end
 end
 
 # Forth / operation
-class ForthDiv < ForthMath
+class ForthDiv < ForthMathWord
   def initialize(line, *)
     super(line, :/)
   end
 end
 
 # Forth MOD operation
-class ForthMod < ForthMath
+class ForthMod < ForthMathWord
   def initialize(line, *)
     super(line, :%)
   end
 end
 
 # Forth AND operation
-class ForthAnd < ForthMath
+class ForthAnd < ForthMathWord
   def initialize(line, *)
     super(line, :&)
   end
 end
 
 # Forth OR operation
-class ForthOr < ForthMath
+class ForthOr < ForthMathWord
   def initialize(line, *)
     super(line, :|)
   end
 end
 
 # Forth XOR operation
-class ForthXor < ForthMath
+class ForthXor < ForthMathWord
   def initialize(line, *)
     super(line, :^)
   end
 end
 
 # Forth CR operation (print newline)
-class ForthCr < ForthWord
+class ForthCr < ForthBasicWord
   def eval(_)
     puts ''
   end
 end
 
 # Forth . operation (Pops and prints top of stack)
-class ForthDot < ForthWord
+class ForthDot < ForthBasicWord
   def eval(interpreter)
     return if check_nil([v = interpreter.stack.pop], interpreter.stack)
 
@@ -181,14 +189,14 @@ class ForthDot < ForthWord
 end
 
 # Forth DROP operation. (Pops top of stack)
-class ForthDrop < ForthWord
+class ForthDrop < ForthBasicWord
   def eval(interpreter)
     interpreter.stack.pop
   end
 end
 
 # Forth DUMP operation. (Prints stack)
-class ForthDump < ForthWord
+class ForthDump < ForthBasicWord
   def eval(interpreter)
     print interpreter.stack
     puts ''
@@ -196,14 +204,14 @@ class ForthDump < ForthWord
 end
 
 # Forth DUP operation. (Duplicates top of stack)
-class ForthDup < ForthWord
+class ForthDup < ForthBasicWord
   def eval(interpreter)
     interpreter.stack << (interpreter.stack.last) unless check_nil([interpreter.stack.last], interpreter.stack)
   end
 end
 
 # Forth EMIT operation. (Prints ASCII of top of stack)
-class ForthEmit < ForthWord
+class ForthEmit < ForthBasicWord
   def eval(interpreter)
     return if check_nil([v = interpreter.stack.pop], interpreter.stack)
 
@@ -213,7 +221,7 @@ class ForthEmit < ForthWord
 end
 
 # Forth = operation
-class ForthEqual < ForthWord
+class ForthEqual < ForthBasicWord
   def eval(interpreter)
     v1 = interpreter.stack.pop
     v2 = interpreter.stack.pop
@@ -222,7 +230,7 @@ class ForthEqual < ForthWord
 end
 
 # Forth > operation
-class ForthGreater < ForthWord
+class ForthGreater < ForthBasicWord
   def eval(interpreter)
     v1 = interpreter.stack.pop
     v2 = interpreter.stack.pop
@@ -231,14 +239,14 @@ class ForthGreater < ForthWord
 end
 
 # Forth INVERT operation
-class ForthInvert < ForthWord
+class ForthInvert < ForthBasicWord
   def eval(interpreter)
     interpreter.stack << (~interpreter.stack.pop)
   end
 end
 
 # Forth < operation
-class ForthLesser < ForthWord
+class ForthLesser < ForthBasicWord
   def eval(interpreter)
     v1 = interpreter.stack.pop
     v2 = interpreter.stack.pop
@@ -247,7 +255,7 @@ class ForthLesser < ForthWord
 end
 
 # Forth OVER operation. (Copies the second value on the stack in front of the first)
-class ForthOver < ForthWord
+class ForthOver < ForthBasicWord
   def eval(interpreter)
     v1 = interpreter.stack.pop
     v2 = interpreter.stack.pop
@@ -256,7 +264,7 @@ class ForthOver < ForthWord
 end
 
 # Forth ROT operation. (Rotates the order of the top three values on the stack)
-class ForthRot < ForthWord
+class ForthRot < ForthBasicWord
   def eval(interpreter)
     v1 = interpreter.stack.pop
     v2 = interpreter.stack.pop
@@ -266,7 +274,7 @@ class ForthRot < ForthWord
 end
 
 # Forth SWAP operation. (Swaps the places of the first two stack elements)
-class ForthSwap < ForthWord
+class ForthSwap < ForthBasicWord
   def eval(interpreter)
     v1 = interpreter.stack.pop
     v2 = interpreter.stack.pop
@@ -276,7 +284,7 @@ end
 
 # On eval, pushes the value in the heap at the address on the
 # top of the stack to the top of the stack.
-class ForthGetVar < ForthWord
+class ForthGetVar < ForthBasicWord
   def eval(interpreter)
     return warn STACK_UNDERFLOW unless (addr = interpreter.stack.pop)
 
@@ -286,7 +294,7 @@ end
 
 # On eval, sets the address on the top of the stack to the
 # value on the second to top of the stack.
-class ForthSetVar < ForthWord
+class ForthSetVar < ForthBasicWord
   def eval(interpreter)
     return warn STACK_UNDERFLOW unless (addr = interpreter.stack.pop)
 
@@ -297,7 +305,7 @@ class ForthSetVar < ForthWord
 end
 
 # Parent class for Variable and Constant definition objects.
-class ForthDefine < ForthObj
+class ForthVarDefine < ForthKeyWord
   def initialize(line, *)
     @name = line.shift
     super(line)
@@ -321,7 +329,7 @@ end
 # Defines a variable in the heap. On eval, allocate
 # free space in the heap and store the address under '@name',
 # which was read in as the first value on the line.
-class ForthVariable < ForthDefine
+class ForthVariable < ForthVarDefine
   def eval(interpreter)
     return unless valid_def(@name, interpreter, 'variable')
 
@@ -331,7 +339,7 @@ end
 
 # Defines a global constant. Sets @name to be the first value
 # popped off the stack in the interpeter's constants list.
-class ForthConstant < ForthDefine
+class ForthConstant < ForthVarDefine
   def eval(interpreter)
     return unless valid_def(@name, interpreter, 'constant')
 
@@ -341,7 +349,7 @@ end
 
 # On eval, takes the top value of the stack as an address and
 # allocates that much free space in the heap.
-class ForthAllot < ForthDefine
+class ForthAllot < ForthVarDefine
   def eval(interpreter)
     return warn STACK_UNDERFLOW unless (addr = interpreter.stack.pop)
 
@@ -350,12 +358,12 @@ class ForthAllot < ForthDefine
 end
 
 # Doesn't do anything in this implementation.
-class ForthCells < ForthWord
+class ForthCells < ForthKeyWord
   def eval(_) end
 end
 
 # Parent class for Forth Words that can span multiple lines.
-class ForthMultiLine < ForthObj
+class ForthMultiLine < ForthKeyWord
   def initialize(line, source, bad_on_empty, end_word: '')
     super
     @source = source
@@ -435,7 +443,7 @@ end
 # Parent class for control operators like IF DO, and BEGIN.
 # Shadows it's parent's read_until method, because
 # it needs to handle ForthCntrlObjs differently on read.
-class ForthCntrlObj < ForthMultiLine
+class ForthControlWord < ForthMultiLine
   private
 
   def read_until(line, block, end_word)
@@ -455,7 +463,7 @@ class ForthCntrlObj < ForthMultiLine
   # outermost object would stop at the first termination word, rather than the outermost (E.g if we
   # had IF IF THEN THEN, the first IF would stop at the first THEN, instead of the second.)
   def add_to_block(block, word, line)
-    block << word = ForthCntrlObj.const_get("Forth#{word.capitalize}").new(line, @source, @bad_on_empty)
+    block << word = ForthControlWord.const_get("Forth#{word.capitalize}").new(line, @source, @bad_on_empty)
     word.remainder
     # if the above fails, it's a normal word.
   rescue NameError
@@ -468,7 +476,7 @@ end
 # the line given. Reads into the true_block until an ELSE or THEN is found, then reads into the
 # false_block until a THEN is found if an ELSE was found. If another IF is encountered, creates a new
 # ForthIf class, and starts it parsing on the rest of the line, resuming it's own parsing where that IF left off.
-class ForthIf < ForthCntrlObj
+class ForthIf < ForthControlWord
   def initialize(line, source, bad_on_empty)
     super(nil, source, bad_on_empty)
     @true_block = []
@@ -507,7 +515,7 @@ end
 # for the loop. (End non-inclusive) From this it builds the sequence
 # of blocks needed to execute the loop. For each iteration, it duplicates
 # the base block, and replaces any I in the block with the current iteration value.
-class ForthDo < ForthCntrlObj
+class ForthDo < ForthControlWord
   def initialize(*args)
     super(*args, end_word: 'loop')
   end
@@ -539,7 +547,7 @@ end
 # Implements a BEGIN loop. Reads into the block until an UNTIL is found.
 # Evaluates by repeatedy popping a value off the stack and evaluating
 # its block until the value is non-zero.
-class ForthBegin < ForthCntrlObj
+class ForthBegin < ForthControlWord
   def initialize(*args)
     super(*args, end_word: 'until')
   end

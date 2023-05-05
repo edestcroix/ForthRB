@@ -17,8 +17,8 @@ class Source
     @print_line = alt_print
   end
 
-  def gets(prompt: false)
-    print '> ' if prompt
+  def gets(prompt: '')
+    print prompt
     line = @source.gets
     print line if @print_line
     line
@@ -40,10 +40,9 @@ class ForthInterpreter
   def initialize(source)
     @source = source
     @stack = []
-    @heap = ForthHeap.new
+    @heap = ForthVarHeap.new
     @constants = {}
     @user_words = {}
-    @keywords = %w[cr drop dump dup and or xor emit invert mod over rot swap variable constant allot cells if do begin]
     @symbol_map = { '+' => 'add', '-' => 'sub', '*' => 'mul', '/' => 'div',
                     '=' => 'equal', '.' => 'dot', '<' => 'lesser', '>' => 'greater',
                     '."' => 'string', '(' => 'comment', '!' => 'set_var', '@' => 'get_var', ':' => 'word_def' }
@@ -51,7 +50,7 @@ class ForthInterpreter
 
   # runs the interpreter on the source provided on creation.
   def interpret
-    while (line = @source.gets(prompt: true))
+    while (line = @source.gets(prompt: '> '))
       %W[quit\n exit\n].include?(line) ? exit(0) : interpret_line(line.split, false)
       puts '' if @newline
       @newline = false
@@ -78,8 +77,7 @@ class ForthInterpreter
   # Identifies if a word is a system word or a user defined word,
   # to prevent word or variable definitions overwriting system ones.
   def system?(word)
-    @keywords.include?(word) || @symbol_map.key?(word)\
-    || @user_words.key?(word.to_sym) || @constants.key?(word)
+    !klass(name(word)).nil? || @user_words.key?(word.to_sym) || @constants.key?(word)
   end
 
   private
@@ -88,7 +86,7 @@ class ForthInterpreter
   # already an object, otherwise creates and evaluates an object
   # based on the string name of the word.
   def eval_word(word, line, bad_on_empty)
-    if word.is_a?(ForthObj)
+    if word.is_a?(ForthKeyWord)
       word.eval(self)
       line
     elsif (obj = klass(name(word)))
@@ -136,7 +134,7 @@ class ForthInterpreter
   # Handles converting a string into a class name, with
   # error handling for non-existant classes
   def klass(class_name)
-    Module.const_get(class_name)
+    ForthKeyWord.const_get(class_name)
   rescue NameError
     nil
   end
