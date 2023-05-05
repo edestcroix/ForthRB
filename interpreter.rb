@@ -17,8 +17,8 @@ class Source
     @print_line = alt_print
   end
 
-  def gets(prompt: '')
-    print prompt
+  def gets(prompt = nil?)
+    print '> ' if prompt
     line = @source.gets
     print line if @print_line
     line
@@ -50,7 +50,7 @@ class ForthInterpreter
 
   # runs the interpreter on the source provided on creation.
   def interpret
-    while (line = @source.gets(prompt: '> '))
+    while (line = @source.gets(true))
       %W[quit\n exit\n].include?(line) ? exit(0) : interpret_line(line.split, false)
       puts '' if @newline
       @newline = false
