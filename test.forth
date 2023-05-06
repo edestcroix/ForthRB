@@ -1,3 +1,14 @@
+( Basic Tests )
+: dropn 0 DO DROP LOOP ;
+
+3 4 5 DUMP ROT DUMP 3 DROPN
+4 5 DUMP SWAP DUMP 2 DROPN
+3 4 DUMP OVER DUMP 3 DROPN
+
+42 0 SWAP - .
+
+48 DUP ." The top of the stack is " . CR ." which looks like ' " DUP EMIT ." ' in ASCII "
+
 : eggsize
 DUP 18 < IF ." reject "
 ELSE
