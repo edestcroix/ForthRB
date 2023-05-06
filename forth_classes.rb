@@ -75,12 +75,14 @@ end
 class ForthBasicWord < ForthKeyWord
   private
 
-  def check_nil(values, stack)
+  # checks if any values are nil, and if so sends a STACK_UNDERFLOW warning
+  # and pushes the non-nil values back onto the stack.
+  def nils?(values, stack)
     values.each do |val|
       next unless val.nil?
 
-      warn "#{STACK_UNDERFLOW} #{values}"
-      values.reverse.each { |v| v.nil? ? nil : stack.push(v) }
+      warn "#{STACK_UNDERFLOW} #{values = values.compact.reverse}"
+      values.each { |v| v.nil? ? nil : stack.push(v) }
       return true
     end
     false
@@ -102,16 +104,13 @@ class ForthMathWord < ForthBasicWord
   private
 
   def mathop(stack)
-    v1 = stack.pop
-    v2 = stack.pop
-    return if check_nil([v1, v2], stack)
+    return if nils?([v1 = stack.pop, v2 = stack.pop], stack)
 
-    result = begin
+    stack << begin
       v2.send(@opr, v1)
     rescue ZeroDivisionError
       0
     end
-    stack << result unless check_nil([v1, v2], stack)
   end
 end
 
@@ -181,7 +180,7 @@ end
 # Forth . operation (Pops and prints top of stack)
 class ForthDot < ForthBasicWord
   def eval(interpreter)
-    return if check_nil([v = interpreter.stack.pop], interpreter.stack)
+    return if nils?([v = interpreter.stack.pop], interpreter.stack)
 
     print "#{v} "
     interpreter.newline = true
@@ -206,14 +205,14 @@ end
 # Forth DUP operation. (Duplicates top of stack)
 class ForthDup < ForthBasicWord
   def eval(interpreter)
-    interpreter.stack << (interpreter.stack.last) unless check_nil([interpreter.stack.last], interpreter.stack)
+    interpreter.stack << (interpreter.stack.last) unless nils?([interpreter.stack.last], interpreter.stack)
   end
 end
 
 # Forth EMIT operation. (Prints ASCII of top of stack)
 class ForthEmit < ForthBasicWord
   def eval(interpreter)
-    return if check_nil([v = interpreter.stack.pop], interpreter.stack)
+    return if nils?([v = interpreter.stack.pop], interpreter.stack)
 
     print "#{v.to_s[0].codepoints} "
     interpreter.newline = true
@@ -225,7 +224,7 @@ class ForthEqual < ForthBasicWord
   def eval(interpreter)
     v1 = interpreter.stack.pop
     v2 = interpreter.stack.pop
-    interpreter.stack << (v1 == v2 ? -1 : 0) unless check_nil([v1, v2], interpreter.stack)
+    interpreter.stack << (v1 == v2 ? -1 : 0) unless nils?([v1, v2], interpreter.stack)
   end
 end
 
@@ -234,14 +233,15 @@ class ForthGreater < ForthBasicWord
   def eval(interpreter)
     v1 = interpreter.stack.pop
     v2 = interpreter.stack.pop
-    interpreter.stack << (v2 > v1 ? -1 : 0) unless check_nil([v1, v2], interpreter.stack)
+    interpreter.stack << (v2 > v1 ? -1 : 0) unless nils?([v1, v2], interpreter.stack)
   end
 end
 
 # Forth INVERT operation
 class ForthInvert < ForthBasicWord
   def eval(interpreter)
-    interpreter.stack << (~interpreter.stack.pop)
+    v = interpreter.stack.pop
+    interpreter.stack << (~v) unless nils?([v], interpreter.stack)
   end
 end
 
@@ -250,7 +250,7 @@ class ForthLesser < ForthBasicWord
   def eval(interpreter)
     v1 = interpreter.stack.pop
     v2 = interpreter.stack.pop
-    interpreter.stack << (v2 < v1 ? -1 : 0) unless check_nil([v1, v2], interpreter.stack)
+    interpreter.stack << (v2 < v1 ? -1 : 0) unless nils?([v1, v2], interpreter.stack)
   end
 end
 
@@ -259,7 +259,7 @@ class ForthOver < ForthBasicWord
   def eval(interpreter)
     v1 = interpreter.stack.pop
     v2 = interpreter.stack.pop
-    interpreter.stack.insert(-1, v1, v2, v1) unless check_nil([v1, v2], interpreter.stack)
+    interpreter.stack.insert(-1, v1, v2, v1) unless nils?([v1, v2], interpreter.stack)
   end
 end
 
@@ -269,7 +269,7 @@ class ForthRot < ForthBasicWord
     v1 = interpreter.stack.pop
     v2 = interpreter.stack.pop
     v3 = interpreter.stack.pop
-    interpreter.stack.insert(-1, v2, v1, v3) unless check_nil([v1, v2, v3], interpreter.stack)
+    interpreter.stack.insert(-1, v2, v1, v3) unless nils?([v1, v2, v3], interpreter.stack)
   end
 end
 
@@ -278,7 +278,7 @@ class ForthSwap < ForthBasicWord
   def eval(interpreter)
     v1 = interpreter.stack.pop
     v2 = interpreter.stack.pop
-    interpreter.stack.insert(-1, v1, v2) unless check_nil([v1, v2], interpreter.stack)
+    interpreter.stack.insert(-1, v1, v2) unless nils?([v1, v2], interpreter.stack)
   end
 end
 
@@ -457,7 +457,7 @@ class ForthControlWord < ForthMultiLine
     line
   end
 
-  # adds words into a block of the class. If the word read corresponds to a ForthCntrlObj, creates a
+  # adds words into a block of the class. If the word read corresponds to a ForthCntrlWord, creates a
   # new instance immediately and starts reading into it rather than reading just the strings in.
   # This is because control objects can be nested, and if they weren't initialized immediately the
   # outermost object would stop at the first termination word, rather than the outermost (E.g if we
@@ -472,10 +472,9 @@ class ForthControlWord < ForthMultiLine
   end
 end
 
-# Holds a forth IF statement. Calling read_line will start parsing the IF statement starting with
-# the line given. Reads into the true_block until an ELSE or THEN is found, then reads into the
-# false_block until a THEN is found if an ELSE was found. If another IF is encountered, creates a new
-# ForthIf class, and starts it parsing on the rest of the line, resuming it's own parsing where that IF left off.
+# Holds a forth IF statement. Reads into @true_block until it finds an ELSE or THEN. If
+# it finds a THEN, it reads into @false_block until it finds a THEN. On eval, pops
+# the top of the stack and if it's 0, evaluates @false_block, otherwise @true_block.
 class ForthIf < ForthControlWord
   def initialize(line, source, bad_on_empty)
     super(nil, source, bad_on_empty)
@@ -510,7 +509,7 @@ class ForthIf < ForthControlWord
   end
 end
 
-# Implements a DO loop. Reads into the block until a LOOP is found.
+# Implements a DO loop. Reads into the @block until a LOOP is found.
 # On calling eval it pops two values off the stack: the start and end values
 # for the loop. (End non-inclusive) From this it builds the sequence
 # of blocks needed to execute the loop. For each iteration, it duplicates
@@ -538,8 +537,8 @@ class ForthDo < ForthControlWord
   # and interpret the block using the interprer
   def do_loop(interpreter, start, limit)
     (start..limit - 1).each do |i|
-      run_block = @block.dup.map { |w| w.is_a?(String) && w.downcase == 'i' ? i.to_s : w }
-      interpreter.interpret_line(run_block, true)
+      block = @block.dup.map { |w| w.is_a?(String) && w.downcase == 'i' ? i.to_s : w }
+      interpreter.interpret_line(block, true)
     end
   end
 end
