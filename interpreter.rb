@@ -43,6 +43,7 @@ class ForthInterpreter
     @heap = ForthVarHeap.new
     @constants = {}
     @user_words = {}
+    @newline = false
     @symbol_map = { '+' => 'add', '-' => 'sub', '*' => 'mul', '/' => 'div',
                     '=' => 'equal', '.' => 'dot', '<' => 'lesser', '>' => 'greater',
                     '."' => 'string', '(' => 'comment', '!' => 'set_var', '@' => 'get_var', ':' => 'word_def' }
@@ -78,6 +79,14 @@ class ForthInterpreter
   # to prevent word or variable definitions overwriting system ones.
   def system?(word)
     !klass(name(word)).nil? || @user_words.key?(word.to_sym) || @constants.key?(word)
+  end
+
+  # Just calling 'warn' will put error messages on the same line as the output
+  # from the '.' and EMIT keywords, and strings. This way, they get put on a new line.
+  def err(msg)
+    msg = "\n#{msg}" if @newline
+    @newline = false
+    warn msg
   end
 
   private

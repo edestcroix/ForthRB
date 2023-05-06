@@ -8,13 +8,13 @@
 # are removed before converting if the string wasn't from the symbol_map. I.e an input 'dup' would become ForthDup,
 # but keyword becomes ForthKeyword, not ForthKeyWord, and key_word gets converted into keyword first.
 
-SYNTAX =   '[SYNTAX]'
-BAD_TYPE = '[BAD_TYPE]'
-BAD_DEF =  '[BAD_DEF]'
-BAD_WORD = '[BAD_WORD]'
-BAD_LOOP = '[BAD_LOOP]'
-BAD_ADDRESS = '[BAD_ADDRESS]'
-STACK_UNDERFLOW = '[STACK_UNDERFLOW]'
+SYNTAX = "\e[31m[SYNTAX]\e[0m"
+BAD_TYPE = "\e[31m[BAD TYPE]\e[0m"
+BAD_DEF = "\e[31m[BAD DEF]\e[0m"
+BAD_WORD = "\e[31m[BAD WORD]\e[0m"
+BAD_LOOP = "\e[31m[BAD LOOP]\e[0m"
+BAD_ADDRESS = "\e[31m[BAD ADDRESS]\e[0m"
+STACK_UNDERFLOW = "\e[31m[STACK UNDERFLOW]\e[0m"
 
 # Implements a Heap for the ForthInterpreter to store variables in.
 class ForthVarHeap
@@ -49,40 +49,31 @@ class ForthVarHeap
   end
 
   def get(address)
-    return warn "#{BAD_ADDRESS} #{addr}" if address.nil?
+    return warn "#{BAD_ADDRESS} #{address}" if address.nil?
     return warn "#{BAD_ADDRESS} #{address}" if address < 1000 || address > 1000 + @free
 
     @heap[address - 1000]
   end
 end
 
-# Base class for all Forth objects. All inherit from this so that testing for forth
-# objects is easy, using is_a?(ForthKeyWord). Every object of this type should have one
-# public method, eval(interpreter), that takes an interpreter object and does the
-# operation it represents. All objects should also have a remainder attribute, that
-# is the remainder of the line after the object has been parsed.
+# Base class for all Forth keywords. Each keyword on initialization takes in the line starting after
+# the keyword so it can parse it as necessary. Whatever is leftover from parsing is stored in @remainder,
+# so the interpreter can continue parsing from where the keyword left off. (I.e @remainder is the line after
+# the keyword and any associated arguments) Each keyword has an eval method, which takes the interpreter as
+# an argument, and uses the interpreter's methods to preform its operation on the interpreter's stack.
 class ForthKeyWord
   attr_reader :remainder
 
+  # also, the wildcard is used to catch any extra arguments that may be passed in
+  # for more complex words that inherit from this class (Like ForthString, ForthIf, etc.)
   def initialize(line = nil, *)
     @remainder = line
   end
-end
 
-# Parent class for all keyword Forth words. I.e no IFs or strings.
-# Since these only take up a single word in the input, they
-# always set remainder to the input line.
-class ForthBasicWord < ForthKeyWord
-  private
-
-  # checks if any values are nil, and if so sends a STACK_UNDERFLOW warning
-  # and pushes the non-nil values back onto the stack.
-  def nils?(values, stack)
-    values.each do |val|
-      next unless val.nil?
-
-      warn "#{STACK_UNDERFLOW} #{values = values.compact.reverse}"
-      values.each { |v| v.nil? ? nil : stack.push(v) }
+  # checks if the stack has at least num non-nil values
+  def underflow?(interpreter, num = 1)
+    if (values = interpreter.stack.last(num).compact).length < num
+      interpreter.err "#{STACK_UNDERFLOW} Stack contains #{values.length} value(s): #{values}. Need #{num}"
       return true
     end
     false
@@ -91,23 +82,24 @@ end
 
 # All math operations inherit from this, because the only
 # difference between them is the operator they use.
-class ForthMathWord < ForthBasicWord
+class ForthMathWord < ForthKeyWord
   def initialize(line, opr, *)
     super(line)
     @opr = opr
   end
 
   def eval(interpreter)
-    mathop(interpreter.stack)
+    mathop(interpreter)
   end
 
   private
 
-  def mathop(stack)
-    return if nils?([v1 = stack.pop, v2 = stack.pop], stack)
+  def mathop(interpreter)
+    return if underflow?(interpreter, 2)
 
-    stack << begin
-      v2.send(@opr, v1)
+    (v1, v2) = interpreter.stack.pop(2)
+    interpreter.stack << begin
+      v1.send(@opr, v2)
     rescue ZeroDivisionError
       0
     end
@@ -171,135 +163,144 @@ class ForthXor < ForthMathWord
 end
 
 # Forth CR operation (print newline)
-class ForthCr < ForthBasicWord
+class ForthCr < ForthKeyWord
   def eval(_)
     puts ''
   end
 end
 
 # Forth . operation (Pops and prints top of stack)
-class ForthDot < ForthBasicWord
+class ForthDot < ForthKeyWord
   def eval(interpreter)
-    return if nils?([v = interpreter.stack.pop], interpreter.stack)
+    return if underflow?(interpreter)
 
-    print "#{v} "
+    print "#{interpreter.stack.pop} "
     interpreter.newline = true
   end
 end
 
 # Forth DROP operation. (Pops top of stack)
-class ForthDrop < ForthBasicWord
+class ForthDrop < ForthKeyWord
   def eval(interpreter)
     interpreter.stack.pop
   end
 end
 
 # Forth DUMP operation. (Prints stack)
-class ForthDump < ForthBasicWord
+class ForthDump < ForthKeyWord
   def eval(interpreter)
+    puts '' if interpreter.newline
+    interpreter.newline = false if interpreter.newline
     print interpreter.stack
     puts ''
   end
 end
 
 # Forth DUP operation. (Duplicates top of stack)
-class ForthDup < ForthBasicWord
+class ForthDup < ForthKeyWord
   def eval(interpreter)
-    interpreter.stack << (interpreter.stack.last) unless nils?([interpreter.stack.last], interpreter.stack)
+    return if underflow?(interpreter)
+
+    interpreter.stack << interpreter.stack.last
   end
 end
 
 # Forth EMIT operation. (Prints ASCII of top of stack)
-class ForthEmit < ForthBasicWord
+class ForthEmit < ForthKeyWord
   def eval(interpreter)
-    return if nils?([v = interpreter.stack.pop], interpreter.stack)
+    return if underflow?(interpreter)
 
-    print "#{v.to_s[0].codepoints} "
+    print "#{interpreter.stack.pop.to_s[0].codepoints.join(' ')} "
     interpreter.newline = true
   end
 end
 
 # Forth = operation
-class ForthEqual < ForthBasicWord
+class ForthEqual < ForthKeyWord
   def eval(interpreter)
-    v1 = interpreter.stack.pop
-    v2 = interpreter.stack.pop
-    interpreter.stack << (v1 == v2 ? -1 : 0) unless nils?([v1, v2], interpreter.stack)
+    return if underflow?(interpreter, 2)
+
+    (v1, v2) = interpreter.stack.pop(2)
+    interpreter.stack << (v1 == v2 ? -1 : 0)
   end
 end
 
 # Forth > operation
-class ForthGreater < ForthBasicWord
+class ForthGreater < ForthKeyWord
   def eval(interpreter)
-    v1 = interpreter.stack.pop
-    v2 = interpreter.stack.pop
-    interpreter.stack << (v2 > v1 ? -1 : 0) unless nils?([v1, v2], interpreter.stack)
+    return if underflow?(interpreter, 2)
+
+    (v1, v2) = interpreter.stack.pop(2)
+    interpreter.stack << (v1 > v2 ? -1 : 0)
   end
 end
 
 # Forth INVERT operation
-class ForthInvert < ForthBasicWord
+class ForthInvert < ForthKeyWord
   def eval(interpreter)
-    v = interpreter.stack.pop
-    interpreter.stack << (~v) unless nils?([v], interpreter.stack)
+    return if underflow?(interpreter)
+
+    interpreter.stack << ~interpreter.stack.pop
   end
 end
 
 # Forth < operation
-class ForthLesser < ForthBasicWord
+class ForthLesser < ForthKeyWord
   def eval(interpreter)
-    v1 = interpreter.stack.pop
-    v2 = interpreter.stack.pop
-    interpreter.stack << (v2 < v1 ? -1 : 0) unless nils?([v1, v2], interpreter.stack)
+    return if underflow?(interpreter, 2)
+
+    (v1, v2) = interpreter.stack.pop(2)
+    interpreter.stack << (v1 < v2 ? -1 : 0)
   end
 end
 
 # Forth OVER operation. (Copies the second value on the stack in front of the first)
-class ForthOver < ForthBasicWord
+class ForthOver < ForthKeyWord
   def eval(interpreter)
-    v1 = interpreter.stack.pop
-    v2 = interpreter.stack.pop
-    interpreter.stack.insert(-1, v1, v2, v1) unless nils?([v1, v2], interpreter.stack)
+    return if underflow?(interpreter, 2)
+
+    (v1, v2) = interpreter.stack.pop(2)
+    interpreter.stack.insert(-1, v1, v2, v1)
   end
 end
 
 # Forth ROT operation. (Rotates the order of the top three values on the stack)
-class ForthRot < ForthBasicWord
+class ForthRot < ForthKeyWord
   def eval(interpreter)
-    v1 = interpreter.stack.pop
-    v2 = interpreter.stack.pop
-    v3 = interpreter.stack.pop
-    interpreter.stack.insert(-1, v2, v1, v3) unless nils?([v1, v2, v3], interpreter.stack)
+    return if underflow?(interpreter, 3)
+
+    (v1, v2, v3) = interpreter.stack.pop(3)
+    interpreter.stack.insert(-1, v3, v1, v2)
   end
 end
 
 # Forth SWAP operation. (Swaps the places of the first two stack elements)
-class ForthSwap < ForthBasicWord
+class ForthSwap < ForthKeyWord
   def eval(interpreter)
-    v1 = interpreter.stack.pop
-    v2 = interpreter.stack.pop
-    interpreter.stack.insert(-1, v1, v2) unless nils?([v1, v2], interpreter.stack)
+    return if underflow?(interpreter, 2)
+
+    (v1, v2) = interpreter.stack.pop(2)
+    interpreter.stack.insert(-1, v2, v1)
   end
 end
 
 # On eval, pushes the value in the heap at the address on the
 # top of the stack to the top of the stack.
-class ForthGetVar < ForthBasicWord
+class ForthGetVar < ForthKeyWord
   def eval(interpreter)
-    return warn STACK_UNDERFLOW unless (addr = interpreter.stack.pop)
+    return if underflow?(interpreter)
 
-    interpreter.stack << interpreter.heap.get(addr)
+    interpreter.stack << interpreter.heap.get(interpreter.stack.pop)
   end
 end
 
 # On eval, sets the address on the top of the stack to the
 # value on the second to top of the stack.
-class ForthSetVar < ForthBasicWord
+class ForthSetVar < ForthKeyWord
   def eval(interpreter)
-    return warn STACK_UNDERFLOW unless (addr = interpreter.stack.pop)
+    return if underflow?(interpreter, 2)
 
-    return warn STACK_UNDERFLOW unless (val = interpreter.stack.pop)
-
+    (val, addr) = interpreter.stack.pop(2)
     interpreter.heap.set(addr, val)
   end
 end
@@ -315,11 +316,11 @@ class ForthVarDefine < ForthKeyWord
 
   def valid_def(name, interpreter, id)
     if name.nil?
-      return warn "#{BAD_DEF} Empty #{id} definition"
+      return interpreter.err "#{BAD_DEF} Empty #{id} definition"
     elsif @name.to_i.to_s == @name
-      return warn "#{BAD_DEF} #{id.capitalize} names cannot be numbers"
+      return interpreter.err "#{BAD_DEF} #{id.capitalize} names cannot be numbers", interpreter.newline?
     elsif interpreter.system?(@name)
-      return warn "#{BAD_DEF} Cannot overrite existing words"
+      return interpreter.err "#{BAD_DEF} Cannot overrite existing words", interpreter.newline?
     end
 
     true
@@ -351,9 +352,9 @@ end
 # allocates that much free space in the heap.
 class ForthAllot < ForthVarDefine
   def eval(interpreter)
-    return warn STACK_UNDERFLOW unless (addr = interpreter.stack.pop)
+    return if underflow?(interpreter)
 
-    interpreter.heap.allot(addr)
+    interpreter.heap.allot(interpreter.stack.pop)
   end
 end
 
@@ -404,7 +405,7 @@ class ForthString < ForthMultiLine
   end
 
   def eval(interpreter)
-    return warn "#{SYNTAX} No closing '\"' found" unless @good
+    return interpreter.err "#{SYNTAX} No closing '\"' found" unless @good
 
     print "#{@block.join(' ')} "
     interpreter.newline = true
@@ -418,7 +419,7 @@ class ForthComment < ForthMultiLine
   end
 
   def eval(_)
-    return warn "#{SYNTAX} No closing ')' found" unless @good
+    return interpreter.err "#{SYNTAX} No closing ')' found" unless @good
   end
 end
 
@@ -432,8 +433,8 @@ class ForthWordDef < ForthMultiLine
   end
 
   def eval(interpeter)
-    return warn "#{BAD_DEF} No name given" if @name.nil?
-    return warn "#{BAD_DEF} Word already defined: #{@name}"\
+    return interpeter.err "#{BAD_DEF} No name given" if @name.nil?
+    return interpeter.err "#{BAD_DEF} Word already defined: #{@name}"\
     if interpeter.system?(@name.to_s) && !interpeter.user_words.key?(@name)
 
     interpeter.user_words[@name] = @block
@@ -485,11 +486,10 @@ class ForthIf < ForthControlWord
 
   def eval(interpreter)
     # If the IF is not good (there wasn't an ending THEN) warn and do nothing.
-    return warn "#{SYNTAX} 'IF' without closing 'THEN'" unless @good
+    return interpreter.err "#{SYNTAX} 'IF' without closing 'THEN'" unless @good
+    return if underflow?(interpreter)
 
-    top = interpreter.stack.pop
-    return warn STACK_UNDERFLOW if top.nil?
-    return interpreter.interpret_line(@false_block.dup, true) if top.zero?
+    return interpreter.interpret_line(@false_block.dup, true) if interpreter.stack.pop.zero?
 
     interpreter.interpret_line(@true_block.dup, true)
   end
@@ -520,13 +520,11 @@ class ForthDo < ForthControlWord
   end
 
   def eval(interpreter)
-    return warn "#{SYNTAX} 'DO' without closing 'LOOP'" unless @good
+    return interpreter.err "#{SYNTAX} 'DO' without closing 'LOOP'" unless @good
+    return if underflow?(interpreter)
 
-    start = interpreter.stack.pop
-    limit = interpreter.stack.pop
-    return warn "#{STACK_UNDERFLOW} #{[limit, start]}" if start.nil? || limit.nil?
-    return warn "#{BAD_LOOP} Invalid loop range" if start.negative? || limit.negative?
-    return warn "#{BAD_LOOP} Invalid loop range" if start > limit
+    (limit, start) = interpreter.stack.pop(2)
+    return warn "#{BAD_LOOP} Invalid loop range" if start.negative? || limit.negative? || start > limit
 
     do_loop(interpreter, start, limit)
   end
@@ -552,16 +550,16 @@ class ForthBegin < ForthControlWord
   end
 
   def eval(interpreter)
-    return warn "#{SYNTAX} 'BEGIN' without closing 'UNTIL'" unless @good
+    return interpreter.err "#{SYNTAX} 'BEGIN' without closing 'UNTIL'" unless @good
 
     # This should be the equivalent of the UNTIL popping the stack
     # and restarting at the BEGIN if non-zero.
     loop do
       interpreter.interpret_line(@block.dup, true)
 
-      top = interpreter.stack.pop
-      return warn STACK_UNDERFLOW if top.nil?
-      break unless top.zero?
+      # NOTE: Should STACK_UNDERFLOW be raised if the stack is empty, or should the loop just halt?
+      return if underflow?(interpreter)
+      break unless interpreter.stack.pop.zero?
     end
   end
 end
