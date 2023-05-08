@@ -22,6 +22,9 @@ The interpreter can be started by calling `forthrb` with no arguments.
 When given an argument, it is assumed to be a filename and the interpreter
 will be run on the input file.
 
+Additionally, within the interpreter the command `:: filename` will attempt
+to load a file called `filename` in the current directory. 
+
 ## Notes
 The interpreter does not do any syntax checking during word definitions,
 or inside IF statements. This is deferred until they are evaluated. This
