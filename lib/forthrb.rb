@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require 'forth_interpreter/version'
-require 'forth_interpreter/key_words'
-require 'forth_interpreter/utils'
+require 'forthrb/version'
+require 'forthrb/key_words'
+require 'forthrb/utils'
 
 # Main interpreter class. Holds the stack, and the dictionary of
 # user defined words. The dictionary is a hash of words to arrays

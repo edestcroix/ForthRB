@@ -2,7 +2,7 @@
 # frozen_string_literal: true
 
 require 'bundler/setup'
-require 'forth_interpreter'
+require 'forthrb'
 
 # if the program is called with an argument,
 # open the file and use it as input.

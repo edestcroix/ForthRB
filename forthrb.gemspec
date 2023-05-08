@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-require_relative 'lib/forth_interpreter/version'
+require_relative 'lib/forthrb/version'
 
 Gem::Specification.new do |spec|
-  spec.name = 'forth_interpreter'
+  spec.name = 'forthrb'
   spec.version = ForthInterpreter::VERSION
   spec.authors = ['Emmett de St. Croix']
   spec.email = ['emmett@edestcroix.ca']
@@ -27,7 +27,7 @@ Gem::Specification.new do |spec|
     end
   end
   spec.bindir = 'bin'
-  spec.executables << 'forth'
+  spec.executables << 'forthrb'
   spec.require_paths = ['lib']
 
   # Uncomment to register a new dependency of your gem
