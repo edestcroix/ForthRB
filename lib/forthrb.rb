@@ -17,7 +17,7 @@ class ForthInterpreter
   attr_accessor :newline
 
   def initialize(source)
-    @source = source
+    @source = Source.new(source, prompt_first: (source == $stdin))
     @stack = []
     @heap = ForthVarHeap.new
     @constants = {}

@@ -49,25 +49,22 @@ class ForthVarHeap
   end
 end
 
-# Source is a wrapper around the input source, so that
-# the interpreter can get its input from an abstracted
-# interface. This allows it to read from a file or stdin,
-# and also allows it to print the prompt before each line.
-# This way, the interpreter itself does not have to
-# deal with prompts, it only has to call gets on the source,
-# and the source will handle the prompt and printing as requested.
-# If the source is initialized with alt_print set to true,
-# it will never print a prompt, and instead print the line it gets.
+# Source is a wrapper around STDIN and File objects to allow the ForthInterpreter
+# to read from either and handle the prompt/output appropriately. On initialization,
+# the ForthInterpreter takes a source (anything that has a gets method really),
+# and wraps it in a Source object. STDIN is wrapped with prompt_firstset to true,
+# so the prompt is printed before the input, and files are wrapped with prompt_first
+# set to false, which prints out the prompt and the line read from the file.
 class Source
-  def initialize(source, alt_print: false)
+  def initialize(source, prompt_first: false)
     @source = source
-    @print_line = alt_print
+    @print_line = prompt_first
   end
 
   def gets(prompt = nil?)
-    print '> ' if prompt
+    print '> ' if prompt && @print_line
     line = @source.gets
-    print line if @print_line
+    print "> #{line}" if !@print_line && line
     line
   end
 end

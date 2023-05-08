@@ -6,9 +6,8 @@ require 'forthrb'
 
 # if the program is called with an argument,
 # open the file and use it as input.
-source = if (filename = ARGV[0])
-           Source.new(File.open(filename), alt_print: true)
-         else
-           Source.new($stdin)
-         end
-ForthInterpreter.new(source).interpret
+if (filename = ARGV[0])
+  ForthInterpreter.new(File.open(filename)).interpret
+else
+  ForthInterpreter.new($stdin).interpret
+end
