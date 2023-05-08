@@ -508,3 +508,17 @@ class ForthBegin < ForthControlWord
     end
   end
 end
+
+# loads and runs a file.
+class ForthLoadFile < ForthKeyWord
+  def initialize(line, *)
+    @filename = line.shift
+    super(line)
+  end
+
+  def eval(interpreter)
+    return interpreter.err "#{BAD_LOAD} No filename given" unless @filename
+
+    interpreter.load(@filename)
+  end
+end

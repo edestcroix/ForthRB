@@ -23,9 +23,9 @@ class ForthInterpreter
     @constants = {}
     @user_words = {}
     @newline = false
-    @symbol_map = { '+' => 'add', '-' => 'sub', '*' => 'mul', '/' => 'div',
-                    '=' => 'equal', '.' => 'dot', '<' => 'lesser', '>' => 'greater',
-                    '."' => 'string', '(' => 'comment', '!' => 'set_var', '@' => 'get_var', ':' => 'word_def' }
+    @symbol_map = { '+' => 'add', '-' => 'sub', '*' => 'mul', '/' => 'div', '.' => 'dot', '=' => 'equal',
+                    '<' => 'lesser', '>' => 'greater', '."' => 'string', '(' => 'comment', '!' => 'set_var',
+                    '@' => 'get_var', ':' => 'word_def', '::' => 'load_file' }
   end
 
   # runs the interpreter on the source provided on creation.
@@ -37,8 +37,8 @@ class ForthInterpreter
     end
   end
 
-  # Interprets a line of Forth code. line is an array of words.
-  # bad_on_empty determines whether parsers should warn if they find an empty line,
+  # Interprets a line of Forth code. line is an array of either strings, ForthKeyWords,
+  # or both. bad_on_empty determines whether parsers should warn if they find an empty line,
   # or keep reading from stdin until they reach their terminating words.
   def interpret_line(line, bad_on_empty)
     while (w = line.shift)
@@ -52,6 +52,19 @@ class ForthInterpreter
         eval_value(w.downcase)
       end
     end
+  end
+
+  # reads from a file by temporarily changing the source to a new Source object
+  # and calling interpret. If the file is not found, warn the user.
+  def load(file)
+    old_source = @source
+    @source = Source.new(File.open(file))
+    interpret
+    puts "\e[32mLoaded #{file} successfully\e[0m"
+    @source = old_source
+  rescue Errno::ENOENT
+    warn "#{BAD_LOAD} File '#{file}' not found"
+    @source = old_source
   end
 
   # Identifies if a word is a system word or a user defined word,
