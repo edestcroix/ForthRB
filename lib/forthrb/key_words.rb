@@ -466,7 +466,7 @@ class ForthDo < ForthControlWord
 
   def eval(interpreter)
     return interpreter.err "#{SYNTAX} 'DO' without closing 'LOOP'" unless @good
-    return if underflow?(interpreter)
+    return if underflow?(interpreter, 2)
 
     (limit, start) = interpreter.stack.pop(2)
     return warn "#{BAD_LOOP} Invalid loop range" if start.negative? || limit.negative? || start > limit
