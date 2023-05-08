@@ -1,60 +1,6 @@
 # frozen_string_literal: true
 
-# Main file containing all the classes for Forth Keywords.
-# All forth classes that do not directly correspond to a Forth keyword, and are not in the symbol_map in
-# ForthInterpreter, have more than one word after Forth. (I.e ForthKeyWord, ForthMathWord, while keywords
-# are ForthDup, ForthIf, etc.) This is because input strings when converted to class names are downcased and
-# can only be converted to multi-word class names if they have underscores deliminating the words, and underscores
-# are removed before converting if the string wasn't from the symbol_map. I.e an input 'dup' would become ForthDup,
-# but keyword becomes ForthKeyword, not ForthKeyWord, and key_word gets converted into keyword first.
-
-SYNTAX = "\e[31m[SYNTAX]\e[0m"
-BAD_TYPE = "\e[31m[BAD TYPE]\e[0m"
-BAD_DEF = "\e[31m[BAD DEF]\e[0m"
-BAD_WORD = "\e[31m[BAD WORD]\e[0m"
-BAD_LOOP = "\e[31m[BAD LOOP]\e[0m"
-BAD_ADDRESS = "\e[31m[BAD ADDRESS]\e[0m"
-STACK_UNDERFLOW = "\e[31m[STACK UNDERFLOW]\e[0m"
-
-# Implements a Heap for the ForthInterpreter to store variables in.
-class ForthVarHeap
-  def initialize
-    @heap = []
-    @name_map = {}
-    @free = 0
-  end
-
-  def create(name)
-    @free += 1
-    @name_map[name] = @free + 1000 - 1
-    @free + 1000 - 1
-  end
-
-  def allot(size)
-    @free += size
-  end
-
-  def get_address(name)
-    @name_map[name]
-  end
-
-  def defined?(name)
-    @name_map.key?(name)
-  end
-
-  def set(addr, value)
-    return warn "#{BAD_ADDRESS} #{addr}" if addr < 1000 || addr > 1000 + @free
-
-    @heap[addr - 1000] = value
-  end
-
-  def get(address)
-    return warn "#{BAD_ADDRESS} #{address}" if address.nil?
-    return warn "#{BAD_ADDRESS} #{address}" if address < 1000 || address > 1000 + @free
-
-    @heap[address - 1000]
-  end
-end
+require_relative 'utils'
 
 # Base class for all Forth keywords. Each keyword on initialization takes in the line starting after
 # the keyword so it can parse it as necessary. Whatever is leftover from parsing is stored in @remainder,
@@ -89,12 +35,6 @@ class ForthMathWord < ForthKeyWord
   end
 
   def eval(interpreter)
-    mathop(interpreter)
-  end
-
-  private
-
-  def mathop(interpreter)
     return if underflow?(interpreter, 2)
 
     (v1, v2) = interpreter.stack.pop(2)
