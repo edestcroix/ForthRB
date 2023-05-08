@@ -31,3 +31,5 @@ Memory addresses for variables start at 1000.
 
 Also, the CELLS keyword doesn't do anything in this implementation because
 the cell size is always 1, so there is nothing to multiply.
+
+The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).

@@ -1,23 +1,23 @@
 # frozen_string_literal: true
 
-require_relative "lib/forth_interpreter/version"
+require_relative 'lib/forth_interpreter/version'
 
 Gem::Specification.new do |spec|
-  spec.name = "forth_interpreter"
+  spec.name = 'forth_interpreter'
   spec.version = ForthInterpreter::VERSION
-  spec.authors = ["Emmett de St. Croix"]
-  spec.email = ["emmett@edestcroix.ca"]
+  spec.authors = ['Emmett de St. Croix']
+  spec.email = ['emmett@edestcroix.ca']
 
-  spec.summary = "A basic Forth interpreter written in Ruby."
-  spec.homepage = "https://www.github.com/edestcroix/ForthRB"
-  spec.license = "MIT"
-  spec.required_ruby_version = ">= 2.6.0"
+  spec.summary = 'A basic Forth interpreter written in Ruby.'
+  spec.homepage = 'https://www.github.com/edestcroix/ForthRB'
+  spec.license = 'MIT'
+  spec.required_ruby_version = '>= 2.6.0'
 
-  spec.metadata["allowed_push_host"] = "TODO: Set to your gem server 'https://example.com'"
+  spec.metadata['allowed_push_host'] = "TODO: Set to your gem server 'https://example.com'"
 
-  spec.metadata["homepage_uri"] = spec.homepage
-  spec.metadata["source_code_uri"] = "https://www.github.com/edestcroix/ForthRB"
-  spec.metadata["changelog_uri"] = "https://www.github.com/edestcroix/ForthRB/blob/master/CHANGELOG.md"
+  spec.metadata['homepage_uri'] = spec.homepage
+  spec.metadata['source_code_uri'] = 'https://www.github.com/edestcroix/ForthRB'
+  spec.metadata['changelog_uri'] = 'https://www.github.com/edestcroix/ForthRB/blob/master/CHANGELOG.md'
 
   # Specify which files should be added to the gem when it is released.
   # The `git ls-files -z` loads the files in the RubyGem that have been added into git.
@@ -26,9 +26,9 @@ Gem::Specification.new do |spec|
       (File.expand_path(f) == __FILE__) || f.start_with?(*%w[bin/ test/ spec/ features/ .git .circleci appveyor])
     end
   end
-  spec.bindir = "exe"
-  spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
-  spec.require_paths = ["lib"]
+  spec.bindir = 'bin'
+  spec.executables << 'forth'
+  spec.require_paths = ['lib']
 
   # Uncomment to register a new dependency of your gem
   # spec.add_dependency "example-gem", "~> 1.0"

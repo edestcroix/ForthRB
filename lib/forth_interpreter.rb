@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require_relative "forth_interpreter/version"
-require_relative "forth_interpreter/key_words"
-require_relative "forth_interpreter/utils"
+require 'forth_interpreter/version'
+require 'forth_interpreter/key_words'
+require 'forth_interpreter/utils'
 
 # Main interpreter class. Holds the stack, and the dictionary of
 # user defined words. The dictionary is a hash of words to arrays
@@ -23,16 +23,16 @@ class ForthInterpreter
     @constants = {}
     @user_words = {}
     @newline = false
-    @symbol_map = { "+" => "add", "-" => "sub", "*" => "mul", "/" => "div",
-                    "=" => "equal", "." => "dot", "<" => "lesser", ">" => "greater",
-                    '."' => "string", "(" => "comment", "!" => "set_var", "@" => "get_var", ":" => "word_def" }
+    @symbol_map = { '+' => 'add', '-' => 'sub', '*' => 'mul', '/' => 'div',
+                    '=' => 'equal', '.' => 'dot', '<' => 'lesser', '>' => 'greater',
+                    '."' => 'string', '(' => 'comment', '!' => 'set_var', '@' => 'get_var', ':' => 'word_def' }
   end
 
   # runs the interpreter on the source provided on creation.
   def interpret
     while (line = @source.gets(true))
       %W[quit\n exit\n].include?(line) ? exit(0) : interpret_line(line.split, false)
-      puts "" if @newline
+      puts '' if @newline
       @newline = false
     end
   end
@@ -99,9 +99,9 @@ class ForthInterpreter
 
   # Sends the appropriate warning message based on the word.
   def invalid_word(word)
-    return warn "#{SYNTAX} ';' without opening ':'" if word == ";"
-    return warn "#{SYNTAX} 'LOOP' without opening 'DO'" if word == "loop"
-    return warn "#{SYNTAX} 'UNTIL' without opening 'BEGIN'" if word == "until"
+    return warn "#{SYNTAX} ';' without opening ':'" if word == ';'
+    return warn "#{SYNTAX} 'LOOP' without opening 'DO'" if word == 'loop'
+    return warn "#{SYNTAX} 'UNTIL' without opening 'BEGIN'" if word == 'until'
     return warn "#{SYNTAX} '#{word.upcase}' without opening 'IF'" if %w[else then].include?(word)
 
     warn "#{BAD_WORD} Unknown word '#{word}'"
@@ -113,10 +113,10 @@ class ForthInterpreter
   # converted value to be used directly. (I.e + -> add, but if word is 'add' it
   # will not be converted to 'ForthAdd', only '+' will.)
   def name(word)
-    return "" if word.nil? || @symbol_map.value?(word.downcase)
+    return '' if word.nil? || @symbol_map.value?(word.downcase)
 
-    word = @symbol_map.fetch(word.downcase, word.to_s.gsub("_", ""))
-    "Forth#{word.split("_").map!(&:capitalize).join("")}"
+    word = @symbol_map.fetch(word.downcase, word.to_s.gsub('_', ''))
+    "Forth#{word.split('_').map!(&:capitalize).join('')}"
   end
 
   # Handles converting a string into a class name, with

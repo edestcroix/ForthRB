@@ -1,9 +1,11 @@
-#!/usr/bin/env ruby
+#! /usr/bin/env ruby
 # frozen_string_literal: true
 
-require "bundler/setup"
-require "forth_interpreter"
+require 'bundler/setup'
+require 'forth_interpreter'
 
+# if the program is called with an argument,
+# open the file and use it as input.
 source = if (filename = ARGV[0])
            Source.new(File.open(filename), alt_print: true)
          else
