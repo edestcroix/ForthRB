@@ -10,8 +10,15 @@ A Forth interpreter written in Ruby.
 - `BEGIN ... UNTIL` blocks
 - Variables (`VARIABLE`, `CONSTANT`, `!`, `@`, `ALLOT`, `CELLS`)
 
+## Installing
+The interpreter can be installed by building and installing with gem:
+
+    gem build forthrb.gemspec
+    gem install forthrb-0.1.0.gem
+
+
 ## Running
-The interpreter can be started by calling `./forth` with no arguments.  
+The interpreter can be started by calling `forthrb` with no arguments.  
 When given an argument, it is assumed to be a filename and the interpreter
 will be run on the input file.
 
