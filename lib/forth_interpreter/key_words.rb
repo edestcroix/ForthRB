@@ -368,8 +368,13 @@ end
 # interpreter's user_words hash with the new name and block.
 class ForthWordDef < ForthMultiLine
   def initialize(line, source, *)
-    @name = line.shift.downcase.to_sym if line
-    super(line, source, false, end_word: ';')
+    if line.empty?
+      super(nil, source, true, end_word: ';')
+      @remainder = line
+    else
+      @name = line.shift.downcase.to_sym unless line.empty?
+      super(line, source, false, end_word: ';')
+    end
   end
 
   def eval(interpeter)
