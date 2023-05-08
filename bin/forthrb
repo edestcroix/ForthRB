@@ -7,7 +7,12 @@ require 'forthrb'
 # if the program is called with an argument,
 # open the file and use it as input.
 if (filename = ARGV[0])
-  ForthInterpreter.new(File.open(filename)).interpret
+  begin
+    file = File.open(File.expand_path(filename))
+  rescue Errno::ENOENT
+    warn "File '#{filename}' not found"
+  end
+  ForthInterpreter.new(file).interpret if file
 else
   ForthInterpreter.new($stdin).interpret
 end
