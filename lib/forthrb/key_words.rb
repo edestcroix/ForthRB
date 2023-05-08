@@ -210,7 +210,7 @@ class ForthRot < ForthKeyWord
     return if underflow?(interpreter, 3)
 
     (v1, v2, v3) = interpreter.stack.pop(3)
-    interpreter.stack.insert(-1, v3, v1, v2)
+    interpreter.stack.insert(-1, v2, v3, v1)
   end
 end
 
@@ -358,7 +358,7 @@ class ForthComment < ForthMultiLine
     super(*args, end_word: ')')
   end
 
-  def eval(_)
+  def eval(interpreter)
     return interpreter.err "#{SYNTAX} No closing ')' found" unless @good
   end
 end
@@ -413,7 +413,7 @@ class ForthControlWord < ForthMultiLine
     word.remainder
     # if the above fails, it's a normal word.
   rescue NameError
-    block << word
+    block << word if word
     line
   end
 end
@@ -445,7 +445,8 @@ class ForthIf < ForthControlWord
     loop do
       line = @source.gets.split if line.empty? && !@bad_on_empty
       return [] unless check_good(line)
-      return read_until(line, @false_block, 'then') if (word = line.shift).downcase == 'else'
+      next unless (word = line.shift)
+      return read_until(line, @false_block, 'then') if word.downcase == 'else'
       break if word.downcase == 'then'
 
       line = add_to_block(@true_block, word, line)
