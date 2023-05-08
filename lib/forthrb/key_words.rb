@@ -396,7 +396,7 @@ class ForthControlWord < ForthMultiLine
     loop do
       line = @source.gets.split if line.empty? && !@bad_on_empty
       return [] unless check_good(line)
-      break if (word = line.shift).downcase == end_word
+      break if (word = line.shift) && word.downcase == end_word
 
       line = add_to_block(block, word, line)
     end
