@@ -14,7 +14,7 @@ A Forth interpreter written in Ruby.
 The interpreter can be installed by building and installing with gem:
 
     gem build forthrb.gemspec
-    gem install forthrb-0.1.0.gem
+    gem install forthrb-xxx.gem
 
 
 ## Running
