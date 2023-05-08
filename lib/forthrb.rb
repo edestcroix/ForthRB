@@ -17,7 +17,7 @@ class ForthInterpreter
   attr_accessor :newline
 
   def initialize(source)
-    @source = Source.new(source, prompt_first: (source == $stdin))
+    @source = Source.new(source)
     @stack = []
     @heap = ForthVarHeap.new
     @constants = {}
@@ -30,7 +30,7 @@ class ForthInterpreter
 
   # runs the interpreter on the source provided on creation.
   def interpret
-    while (line = @source.gets(true))
+    while (line = @source.gets(prompt: true))
       %W[quit\n exit\n].include?(line) ? exit(0) : interpret_line(line.split, false)
       puts '' if @newline
       @newline = false

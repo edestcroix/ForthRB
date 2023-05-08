@@ -57,15 +57,15 @@ end
 # so the prompt is printed before the input, and files are wrapped with prompt_first
 # set to false, which prints out the prompt and the line read from the file.
 class Source
-  def initialize(source, prompt_first: false)
+  def initialize(source)
     @source = source
-    @print_line = prompt_first
+    @is_stdin = source == $stdin
   end
 
-  def gets(prompt = nil?)
-    print '> ' if prompt && @print_line
+  def gets(prompt: false)
+    print '> ' if prompt && @is_stdin
     line = @source.gets
-    print "> #{line}" if !@print_line && line
+    print "> #{line}" if !@is_stdin && line
     line
   end
 end
