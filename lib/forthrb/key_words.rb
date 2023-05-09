@@ -273,6 +273,7 @@ end
 class ForthVariable < ForthVarDefine
   def eval(interpreter)
     return unless valid_def(@name, interpreter, 'variable')
+    return if underflow?(interpreter)
 
     interpreter.heap.create(@name.downcase)
   end
@@ -283,6 +284,7 @@ end
 class ForthConstant < ForthVarDefine
   def eval(interpreter)
     return unless valid_def(@name, interpreter, 'constant')
+    return if underflow?(interpreter)
 
     interpreter.constants[@name.downcase.to_sym] = interpreter.stack.pop
   end
