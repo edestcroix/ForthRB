@@ -47,12 +47,12 @@ describe ForthRot do
   it 'raises a stack underflow error' do
     expect do
       rot.eval(interpreter)
-    end.to output("#{STACK_UNDERFLOW} Stack contains 0 value(s): []. Need 3\n").to_stderr
+    end.to output("#{STACK_UNDERFLOW} Stack contains 0/3 required value(s): [].\n").to_stderr
 
     interpreter.interpret_line(%w[1], false)
     expect do
       rot.eval(interpreter)
-    end.to output("#{STACK_UNDERFLOW} Stack contains 1 value(s): [1]. Need 3\n").to_stderr
+    end.to output("#{STACK_UNDERFLOW} Stack contains 1/3 required value(s): [1].\n").to_stderr
   end
 end
 
@@ -69,12 +69,12 @@ describe ForthSwap do
   it 'raises a stack underflow error' do
     expect do
       swap.eval(interpreter)
-    end.to output("#{STACK_UNDERFLOW} Stack contains 0 value(s): []. Need 2\n").to_stderr
+    end.to output("#{STACK_UNDERFLOW} Stack contains 0/2 required value(s): [].\n").to_stderr
 
     expect do
       interpreter.interpret_line(%w[1], false)
       swap.eval(interpreter)
-    end.to output("#{STACK_UNDERFLOW} Stack contains 1 value(s): [1]. Need 2\n").to_stderr
+    end.to output("#{STACK_UNDERFLOW} Stack contains 1/2 required value(s): [1].\n").to_stderr
   end
 end
 

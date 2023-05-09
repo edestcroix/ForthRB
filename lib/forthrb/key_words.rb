@@ -16,10 +16,12 @@ class ForthKeyWord
     @remainder = line
   end
 
+  private
+
   # checks if the stack has at least num non-nil values
   def underflow?(interpreter, num = 1)
     if (values = interpreter.stack.last(num).compact).length < num
-      interpreter.err "#{STACK_UNDERFLOW} Stack contains #{values.length} value(s): #{values}. Need #{num}"
+      interpreter.err "#{STACK_UNDERFLOW} Stack contains #{values.length}/#{num} required value(s): #{values}."
       return true
     end
     false
