@@ -1,5 +1,6 @@
 # ForthRB
-A Forth interpreter written in Ruby.
+A Forth interpreter written in Ruby.  
+[![Ruby](https://github.com/edestcroix/ForthRB/actions/workflows/ruby.yml/badge.svg)](https://github.com/edestcroix/ForthRB/actions/workflows/ruby.yml)
 
 ## Supported Operations
 - All standard keywords (`DUMP`, `DROP`, `INVERT`, `ROT`, etc.)
