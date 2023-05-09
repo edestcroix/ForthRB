@@ -96,7 +96,7 @@ describe ForthString do
   end
 
   it 'reads more lines' do
-    test_stdin = StringIO.new("hello world \"\n")
+    test_stdin = StringIO.new("\nhello world \"\n")
     test_string = ForthString.new(%w[hello world], test_stdin, false)
     expect do
       test_string.eval(interpreter)
