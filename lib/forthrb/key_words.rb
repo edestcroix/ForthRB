@@ -376,17 +376,18 @@ class ForthWordDef < ForthMultiLine
       super(nil, source, true, end_word: ';')
       @remainder = line
     else
-      @name = line.shift.downcase.to_sym unless line.empty?
-      super(line, source, false, end_word: ';')
+      @name = line.shift.downcase
+      super(line, source, @name == ';', end_word: ';')
     end
   end
 
   def eval(interpeter)
-    return interpeter.err "#{BAD_DEF} No name given" if @name.nil?
-    return interpeter.err "#{BAD_DEF} Word already defined: #{@name}"\
-    if interpeter.system?(@name.to_s) && !interpeter.user_words.key?(@name)
+    return interpeter.err "#{BAD_DEF} No name given for word definition" if @name.nil? || @name == ';'
+    return interpeter.err "#{BAD_DEF} Word names cannot be builtins or variable names"\
+    if interpeter.system?(@name.to_s) && !interpeter.user_words.key?(@name.to_sym)
+    return interpeter.err "#{BAD_DEF} Word names cannot be numbers" if @name.to_i.to_s == @name
 
-    interpeter.user_words[@name] = @block
+    interpeter.user_words[@name.to_sym] = @block
   end
 end
 
