@@ -163,7 +163,7 @@ end
 describe ForthDo do
   let(:interpreter) { ForthInterpreter.new($stdin) }
   let(:stdin) { StringIO.new("\nrot dump\nloop 3 4") }
-  let(:forth_do) { ForthDo.new(%w[." hi "], stdin, false) }
+  let(:forth_do) { ForthDo.new(%w[I .], stdin, false) }
 
   # Test that it will read from the source until it finds a loop correctly.
   it 'reads until loop' do
@@ -173,9 +173,8 @@ describe ForthDo do
 
   # Test that when bad_on_empty is true, it will error if there is no 'loop'.
   it 'errors without loop' do
-    test_do = ForthDo.new(%w[." hi "], $stdin, true)
     expect do
-      test_do.eval(interpreter)
+      ForthDo.new(%w[." hi "], $stdin, true).eval(interpreter)
     end.to output("#{SYNTAX} 'DO' without closing 'LOOP'\n").to_stderr
   end
 
@@ -184,12 +183,57 @@ describe ForthDo do
       interpreter.interpret_line(%w[3 4 5 3 0], false)
       expect(interpreter.stack).to eq [3, 4, 5, 3, 0]
       forth_do.eval(interpreter)
-    end.to output("hi \n[4, 5, 3]\nhi \n[5, 3, 4]\nhi \n[3, 4, 5]\n").to_stdout
+    end.to output("0 \n[4, 5, 3]\n1 \n[5, 3, 4]\n2 \n[3, 4, 5]\n").to_stdout
   end
 
   it 'nests loops' do
     test_do = ForthDo.new(%w[3 0 DO 3 LOOP LOOP], $stdin, false)
     interpreter.interpret_line(['3', '0', test_do], false)
     expect(interpreter.stack).to eq [3, 3, 3, 3, 3, 3, 3, 3, 3]
+  end
+end
+
+describe ForthWordDef do
+  let(:interpreter) { ForthInterpreter.new($stdin) }
+  # deliberately put weird newlines in the input IO to make sure it reads correctly.
+  let(:word_def) { ForthWordDef.new(%w[test], StringIO.new("\n 1 2\n+ ;"), false) }
+
+  it 'defines a word' do
+    word_def.eval(interpreter)
+    expect(interpreter.user_words).to include(test: %w[1 2 +])
+    interpreter.interpret_line(['test'], false)
+    expect(interpreter.stack).to eq [3]
+  end
+
+  it 'supports recursion' do
+    ForthWordDef.new(%w[fac DUP 1 > IF DUP 1 - fac * ELSE DROP 1 THEN ;], $stdin, false).eval(interpreter)
+    interpreter.interpret_line(%w[5 fac], false)
+    expect(interpreter.stack).to eq [120]
+  end
+
+  it 'errors without a name' do
+    expect do
+      interpreter.interpret_line(%w[: ;], false)
+    end.to output("#{BAD_DEF} No name given for word definition\n").to_stderr
+  end
+
+  it 'overwrites a word' do
+    word_def.eval(interpreter)
+    interpreter.interpret_line(%w[: test 3 4 + ;], false)
+    expect(interpreter.user_words).to include(test: %w[3 4 +])
+  end
+end
+
+describe ForthWordDef do
+  let(:interpreter) { ForthInterpreter.new($stdin) }
+  it 'prevents defining a word with a number' do
+    expect do
+      interpreter.interpret_line(%w[: 1 2 + ;], false)
+    end.to output("#{BAD_DEF} Word names cannot be numbers\n").to_stderr
+  end
+  it 'prevents defining a word with a builtin name' do
+    expect do
+      interpreter.interpret_line(%w[: + 2 + ;], false)
+    end.to output("#{BAD_DEF} Word names cannot be builtins or variable names\n").to_stderr
   end
 end
