@@ -371,19 +371,14 @@ end
 # interpreter's user_words hash with the new name and block.
 class ForthWordDef < ForthMultiLine
   def initialize(line, source, *)
-    if line.empty?
-      super(nil, source, true, end_word: ';')
-      @remainder = line
-    else
-      @name = line.shift.downcase
-      super(line, source, @name == ';', end_word: ';')
-    end
+    @name = line.shift&.downcase
+    super(line, source, @name.nil? || @name == ';', end_word: ';')
   end
 
   def eval(interpeter)
     return interpeter.err "#{BAD_DEF} No name given for word definition" if @name.nil? || @name == ';'
     return interpeter.err "#{BAD_DEF} Word names cannot be builtins or variable names"\
-    if interpeter.system?(@name.to_s) && !interpeter.user_words.key?(@name.to_sym)
+    if interpeter.system?(@name) && !interpeter.user_words.key?(@name.to_sym)
     return interpeter.err "#{BAD_DEF} Word names cannot be numbers" if @name.integer?
 
     interpeter.user_words[@name.to_sym] = @block
