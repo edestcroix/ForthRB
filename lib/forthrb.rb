@@ -70,7 +70,7 @@ class ForthInterpreter
   # Identifies if a word is a system word or a user defined word,
   # to prevent word or variable definitions overwriting system ones.
   def system?(word)
-    !klass(name(word)).nil? || @user_words.key?(word.to_sym) || @constants.key?(word)
+    !klass(name(word)).nil? || @user_words.key?(word.to_sym) || @constants.key?(word) || @heap.defined?(word)
   end
 
   # Just calling 'warn' will put error messages on the same line as the output
