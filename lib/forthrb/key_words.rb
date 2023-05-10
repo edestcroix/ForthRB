@@ -259,8 +259,8 @@ class ForthVarDefine < ForthKeyWord
   def valid_def(name, interpreter, id)
     if name.nil?
       return interpreter.err "#{BAD_DEF} Empty #{id} definition"
-    elsif @name.to_i.to_s == @name
-      return interpreter.err "#{BAD_DEF} #{id.capitalize} names cannot be numbers", interpreter.newline?
+    elsif @name.integer?
+      return interpreter.err "#{BAD_DEF} #{id.capitalize} names cannot be numbers"
     elsif interpreter.system?(@name)
       return interpreter.err "#{BAD_DEF} Cannot overrite existing words", interpreter.newline?
     end
@@ -384,7 +384,7 @@ class ForthWordDef < ForthMultiLine
     return interpeter.err "#{BAD_DEF} No name given for word definition" if @name.nil? || @name == ';'
     return interpeter.err "#{BAD_DEF} Word names cannot be builtins or variable names"\
     if interpeter.system?(@name.to_s) && !interpeter.user_words.key?(@name.to_sym)
-    return interpeter.err "#{BAD_DEF} Word names cannot be numbers" if @name.to_i.to_s == @name
+    return interpeter.err "#{BAD_DEF} Word names cannot be numbers" if @name.integer?
 
     interpeter.user_words[@name.to_sym] = @block
   end

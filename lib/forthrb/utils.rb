@@ -10,6 +10,13 @@ BAD_ADDRESS = "\e[31m[BAD ADDRESS]\e[0m"
 STACK_UNDERFLOW = "\e[31m[STACK UNDERFLOW]\e[0m"
 BAD_LOAD = "\e[31m[BAD LOAD]\e[0m"
 
+# extend String class to add integer check.
+class String
+  def integer?
+    self =~ /^-?\d+\.?\d*$/
+  end
+end
+
 # Implements a Heap for the ForthInterpreter to store variables in.
 class ForthVarHeap
   def initialize
