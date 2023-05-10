@@ -258,11 +258,11 @@ class ForthVarDefine < ForthKeyWord
 
   def valid_def(name, interpreter, id)
     if name.nil?
-      return interpreter.err "#{BAD_DEF} Empty #{id} definition"
+      return interpreter.err "#{SYNTAX} Empty #{id} definition"
     elsif @name.integer?
       return interpreter.err "#{BAD_DEF} #{id.capitalize} names cannot be numbers"
     elsif interpreter.system?(@name)
-      return interpreter.err "#{BAD_DEF} Cannot overrite existing words", interpreter.newline?
+      return interpreter.err "#{BAD_DEF} '#{@name}' is already defined"
     end
 
     true
