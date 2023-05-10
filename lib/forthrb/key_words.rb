@@ -275,7 +275,6 @@ end
 class ForthVariable < ForthVarDefine
   def eval(interpreter)
     return unless valid_def(@name, interpreter, 'variable')
-    return if underflow?(interpreter)
 
     interpreter.heap.create(@name.downcase)
   end
