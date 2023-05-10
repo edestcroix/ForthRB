@@ -58,7 +58,7 @@ class ForthInterpreter
   # and calling interpret. If the file is not found, warn the user.
   def load(file)
     old_source = @source
-    file = File.expand_path(file)
+    File.expand_path! file
     return warn "#{BAD_LOAD} File '#{file}' not found" unless File.exist?(file)
 
     @source = Source.new(File.open(file))
@@ -127,9 +127,9 @@ class ForthInterpreter
   # converted value to be used directly. (I.e + -> add, but if word is 'add' it
   # will not be converted to 'ForthAdd', only '+' will.)
   def name(word)
-    return '' if word.nil? || @symbol_map.value?(word.downcase)
+    return '' if word.nil? || @symbol_map.value?(word = word.downcase)
 
-    word = @symbol_map.fetch(word.downcase, word.to_s.gsub('_', ''))
+    word = @symbol_map.fetch(word, word.gsub('_', ''))
     "Forth#{word.split('_').map!(&:capitalize).join('')}"
   end
 
