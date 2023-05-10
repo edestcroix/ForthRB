@@ -2,7 +2,6 @@
 
 # Error Codes
 SYNTAX = "\e[31m[SYNTAX]\e[0m"
-BAD_TYPE = "\e[31m[BAD TYPE]\e[0m"
 BAD_DEF = "\e[31m[BAD DEF]\e[0m"
 BAD_WORD = "\e[31m[BAD WORD]\e[0m"
 BAD_LOOP = "\e[31m[BAD LOOP]\e[0m"
@@ -27,7 +26,7 @@ class ForthVarHeap
 
   def create(name)
     @free += 1
-    @name_map[name] = @free + 1000 - 1
+    @name_map[name.to_sym] = @free + 1000 - 1
     @free + 1000 - 1
   end
 
@@ -36,11 +35,11 @@ class ForthVarHeap
   end
 
   def get_address(name)
-    @name_map[name]
+    @name_map[name.to_sym]
   end
 
   def defined?(name)
-    @name_map.key?(name)
+    @name_map.key?(name.to_sym)
   end
 
   def set(addr, value)
