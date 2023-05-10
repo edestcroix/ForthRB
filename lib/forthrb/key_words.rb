@@ -307,11 +307,11 @@ end
 
 # Parent class for Forth Words that can span multiple lines.
 class ForthMultiLine < ForthKeyWord
-  def initialize(line, source, bad_on_empty, end_word: '')
+  def initialize(line, source, stop_if_empty, end_word: '')
     super(line)
     @source = source
     @good = true
-    @bad_on_empty = bad_on_empty
+    @stop_if_empty = stop_if_empty
     @remainder = read_until(line, @block = [], end_word) if line
   end
 
@@ -319,7 +319,7 @@ class ForthMultiLine < ForthKeyWord
 
   def read_until(line, block, end_word)
     while (word = line.shift) != end_word
-      line = @source.gets.split if line.empty? && !@bad_on_empty
+      line = @source.gets.split if line.empty? && !@stop_if_empty
       return [] unless check_good(line)
 
       block << word if word
@@ -328,18 +328,13 @@ class ForthMultiLine < ForthKeyWord
   end
 
   def check_good(line)
-    if @bad_on_empty && line.empty?
-      @good = false
-      false
-    else
-      true
-    end
+    @stop_if_empty && line.empty? ? @good = false : true
   end
 end
 
 # Forth String. On eval, prints the line up to the first "
 # character. Sets @remainder to the line after the ". If
-# there is no ", it raises a warning on eval when bad_on_empty
+# there is no ", it raises a warning on eval when stop_if_empty
 # is true, otherwise it keeps reading until it finds one.
 class ForthString < ForthMultiLine
   def initialize(*args)
@@ -392,7 +387,7 @@ class ForthControlWord < ForthMultiLine
 
   def read_until(line, block, end_word)
     loop do
-      line = @source.gets.split if line.empty? && !@bad_on_empty
+      line = @source.gets.split if line.empty? && !@stop_if_empty
       return [] unless check_good(line)
       break if (word = line.shift) && word.downcase == end_word
 
@@ -407,7 +402,7 @@ class ForthControlWord < ForthMultiLine
   # outermost object would stop at the first termination word, rather than the outermost (E.g if we
   # had IF IF THEN THEN, the first IF would stop at the first THEN, instead of the second.)
   def add_to_block(block, word, line)
-    block << word = ForthControlWord.const_get("Forth#{word.capitalize}").new(line, @source, @bad_on_empty)
+    block << word = ForthControlWord.const_get("Forth#{word.capitalize}").new(line, @source, @stop_if_empty)
     word.remainder
     # if the above fails, it's a normal word.
   rescue NameError
@@ -420,8 +415,8 @@ end
 # it finds a THEN, it reads into @false_block until it finds a THEN. On eval, pops
 # the top of the stack and if it's 0, evaluates @false_block, otherwise @true_block.
 class ForthIf < ForthControlWord
-  def initialize(line, source, bad_on_empty)
-    super(nil, source, bad_on_empty)
+  def initialize(line, source, stop_if_empty)
+    super(nil, source, stop_if_empty)
     @true_block = []
     @false_block = []
     @remainder = read_true(line)
@@ -443,7 +438,7 @@ class ForthIf < ForthControlWord
 
   def read_true(line)
     loop do
-      line = @source.gets.split if line.empty? && !@bad_on_empty
+      line = @source.gets.split if line.empty? && !@stop_if_empty
       return [] unless check_good(line)
       next unless (word = line.shift)
       return read_until(line, @false_block, 'then') if word.downcase == 'else'
