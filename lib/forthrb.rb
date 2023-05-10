@@ -41,15 +41,15 @@ class ForthInterpreter
   # or both. bad_on_empty determines whether parsers should warn if they find an empty line,
   # or keep reading from stdin until they reach their terminating words.
   def interpret_line(line, bad_on_empty)
-    while (w = line.shift)
+    while (word = line.shift)
       # if eval_word sets l to a non-nil value, update line to l as
       # l stores the remainder of the line after the word was evaluated.
-      if (l = eval_word(w, line, bad_on_empty))
+      if (l = eval_word(word, line, bad_on_empty))
         line = l
-      elsif @user_words.key?(w.downcase.to_sym)
-        interpret_line(@user_words[w.downcase.to_sym].dup, true)
+      elsif @user_words.key?((word = word.downcase).to_sym)
+        interpret_line(@user_words[word.to_sym].dup, true)
       else
-        eval_value(w.downcase)
+        @stack << eval_value(word)
       end
     end
   end
@@ -87,7 +87,7 @@ class ForthInterpreter
   # already an object, otherwise creates and evaluates an object
   # based on the string name of the word.
   def eval_word(word, line, bad_on_empty)
-    if word.is_a?(ForthKeyWord)
+    if word.is_a? ForthKeyWord
       word.eval(self)
       line
     elsif (obj = klass(name(word)))
@@ -99,19 +99,20 @@ class ForthInterpreter
 
   # Handles 'value' type words. I.e numbers, variables, or constants that need to be pushed to the stack.
   def eval_value(word)
-    if word.to_i.to_s == word
-      @stack.push(word.to_i)
-    elsif @heap.defined?(word)
-      @stack.push(@heap.get_address(word))
-    elsif @constants.key?(word.to_sym)
-      @stack.push(@constants[word.to_sym])
+    # integer? method added by extending String in utils.rb
+    if word.integer?
+      word.to_i
+    elsif @heap.defined? word
+      @heap.get_address word
+    elsif @constants.key? word.to_sym
+      @constants[word.to_sym]
     else
-      invalid_word(word)
+      err_invalid word
     end
   end
 
   # Sends the appropriate warning message based on the word.
-  def invalid_word(word)
+  def err_invalid(word)
     return err "#{SYNTAX} ';' without opening ':'" if word == ';'
     return err "#{SYNTAX} 'LOOP' without opening 'DO'" if word == 'loop'
     return err "#{SYNTAX} 'UNTIL' without opening 'BEGIN'" if word == 'until'
