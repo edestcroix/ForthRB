@@ -12,7 +12,7 @@ class ForthKeyWord
 
   # also, the wildcard is used to catch any extra arguments that may be passed in
   # for more complex words that inherit from this class (Like ForthString, ForthIf, etc.)
-  def initialize(line = nil, *)
+  def initialize(line, *)
     @remainder = line
   end
 
@@ -132,9 +132,8 @@ end
 class ForthDump < ForthKeyWord
   def eval(interpreter)
     puts '' if interpreter.newline
-    interpreter.newline = false if interpreter.newline
-    print interpreter.stack
-    puts ''
+    interpreter.newline = false
+    puts "[#{interpreter.stack.join(', ')}]"
   end
 end
 
@@ -250,7 +249,7 @@ end
 # Parent class for Variable and Constant definition objects.
 class ForthVarDefine < ForthKeyWord
   def initialize(line, *)
-    @name = line.shift
+    @name = line.shift&.downcase
     super(line)
   end
 
@@ -276,7 +275,7 @@ class ForthVariable < ForthVarDefine
   def eval(interpreter)
     return unless valid_def(@name, interpreter, 'variable')
 
-    interpreter.heap.create(@name.downcase)
+    interpreter.heap.create(@name)
   end
 end
 
@@ -287,7 +286,7 @@ class ForthConstant < ForthVarDefine
     return unless valid_def(@name, interpreter, 'constant')
     return if underflow?(interpreter)
 
-    interpreter.constants[@name.downcase.to_sym] = interpreter.stack.pop
+    interpreter.constants[@name.to_sym] = interpreter.stack.pop
   end
 end
 
@@ -309,7 +308,7 @@ end
 # Parent class for Forth Words that can span multiple lines.
 class ForthMultiLine < ForthKeyWord
   def initialize(line, source, bad_on_empty, end_word: '')
-    super
+    super(line)
     @source = source
     @good = true
     @bad_on_empty = bad_on_empty
@@ -433,9 +432,11 @@ class ForthIf < ForthControlWord
     return interpreter.err "#{SYNTAX} 'IF' without closing 'THEN'" unless @good
     return if underflow?(interpreter)
 
-    return interpreter.interpret_line(@false_block.dup, true) if interpreter.stack.pop.zero?
-
-    interpreter.interpret_line(@true_block.dup, true)
+    if interpreter.stack.pop.zero?
+      interpreter.interpret_line(@false_block.dup, true)
+    else
+      interpreter.interpret_line(@true_block.dup, true)
+    end
   end
 
   private
@@ -479,7 +480,7 @@ class ForthDo < ForthControlWord
   # for each iteration from start to limit, set I to the current value,
   # and interpret the block using the interprer
   def do_loop(interpreter, start, limit)
-    (start..limit - 1).each do |i|
+    (start...limit).each do |i|
       block = @block.dup.map { |w| w.is_a?(String) && w.downcase == 'i' ? i.to_s : w }
       interpreter.interpret_line(block, true)
     end
