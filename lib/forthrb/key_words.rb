@@ -360,29 +360,12 @@ class ForthComment < ForthMultiLine
   end
 end
 
-# Creates a user defined word. Reads in the name of the word,
-# then copies the input as-is into @block. On eval, updates the
-# interpreter's user_words hash with the new name and block.
-class ForthWordDef < ForthMultiLine
-  def initialize(line, source, *)
-    @name = line.shift&.downcase
-    super(line, source, @name.nil? || @name == ';', end_word: ';')
-  end
-
-  def eval(interpeter)
-    return interpeter.err "#{BAD_DEF} No name given for word definition" if @name.nil? || @name == ';'
-    return interpeter.err "#{BAD_DEF} Word names cannot be builtins or variable names"\
-    if interpeter.system?(@name) && !interpeter.user_words.key?(@name.to_sym)
-    return interpeter.err "#{BAD_DEF} Word names cannot be numbers" if @name.integer?
-
-    interpeter.user_words[@name.to_sym] = @block
-  end
-end
-
 # Parent class for control operators like IF DO, and BEGIN.
 # Shadows it's parent's read_until method, because
 # it needs to handle ForthCntrlObjs differently on read.
 class ForthControlWord < ForthMultiLine
+  include ClassConvert
+
   private
 
   def read_until(line, block, end_word)
@@ -400,14 +383,33 @@ class ForthControlWord < ForthMultiLine
   # new instance immediately and starts reading into it rather than reading just the strings in.
   # This is because control objects can be nested, and if they weren't initialized immediately the
   # outermost object would stop at the first termination word, rather than the outermost (E.g if we
-  # had IF IF THEN THEN, the first IF would stop at the first THEN, instead of the second.)
+  # had IF IF THEN THEN, the f
   def add_to_block(block, word, line)
-    block << word = ForthControlWord.const_get("Forth#{word.capitalize}").new(line, @source, @stop_if_empty)
-    word.remainder
-    # if the above fails, it's a normal word.
-  rescue NameError
+    obj = str_to_class(word)&.new(line, @source, @stop_if_empty)
+    block << obj if obj
+    return obj.remainder if obj
+
     block << word if word
     line
+  end
+end
+
+# Creates a user defined word. Reads in the name of the word,
+# then copies the input as-is into @block. On eval, updates the
+# interpreter's user_words hash with the new name and block.
+class ForthWordDef < ForthControlWord
+  def initialize(line, source, *)
+    @name = line.shift&.downcase
+    super(line, source, @name.nil? || @name == ';', end_word: ';')
+  end
+
+  def eval(interpeter)
+    return interpeter.err "#{BAD_DEF} No name given for word definition" if @name.nil? || @name == ';'
+    return interpeter.err "#{BAD_DEF} Word names cannot be builtins or variable names"\
+    if interpeter.system?(@name) && !interpeter.user_words.key?(@name.to_sym)
+    return interpeter.err "#{BAD_DEF} Word names cannot be numbers" if @name.integer?
+
+    interpeter.user_words[@name.to_sym] = @block
   end
 end
 

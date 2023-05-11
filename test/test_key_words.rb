@@ -128,7 +128,7 @@ describe ForthWordDef do
 
   it 'defines a word' do
     word_def.eval(interpreter)
-    expect(interpreter.user_words).to include(test: %w[1 2 +])
+    expect(interpreter.user_words).to include(test: %w[1 2] + [ForthAdd])
     interpreter.interpret_line(['test'], false)
     expect(interpreter.stack).to eq [3]
   end
@@ -142,7 +142,7 @@ describe ForthWordDef do
   it 'overwrites a word' do
     word_def.eval(interpreter)
     interpreter.interpret_line(%w[: test 3 4 + ;], false)
-    expect(interpreter.user_words).to include(test: %w[3 4 +])
+    expect(interpreter.user_words).to include(test: %w[3 4] + [ForthAdd])
   end
 end
 
@@ -177,7 +177,8 @@ describe ForthIf do
   let(:forth_if) { ForthIf.new(%w[." hello world "], stdin, false) }
 
   it 'reads until else or then' do
-    expect(forth_if.remainder).to eq %w[4 5 6]
+    expect(forth_if.instance_variable_get(:@true_block)).to include(ForthString, ForthAdd, ForthDot)
+    expect(forth_if.instance_variable_get(:@false_block)).to include('5', '6', ForthAdd, ForthDot)
   end
 
   it 'evaluates true' do
@@ -195,23 +196,24 @@ describe ForthIf do
   end
 
   it 'nests ifs' do
-    test_if = ForthIf.new(%w[1 if 4 . else 3 . then then], $stdin, false)
     expect do
       interpreter.interpret_line(%w[1], false)
-      test_if.eval(interpreter)
+      ForthIf.new(%w[1 if 4 . else 3 . then then], $stdin, false).eval(interpreter)
     end.to output('4 ').to_stdout
   end
 end
 
 describe ForthDo do
   let(:interpreter) { ForthInterpreter.new($stdin) }
-  let(:stdin) { StringIO.new("\nrot dump\nloop 3 4") }
-  let(:forth_do) { ForthDo.new(%w[I .], stdin, false) }
+  let(:forth_do) { ForthDo.new(%w[I .], StringIO.new("\nrot dump\nloop 3 4"), false) }
 
   # Test that it will read from the source until it finds a loop correctly.
   it 'reads until loop' do
-    expect(forth_do.remainder).to eq %w[3 4]
     expect(forth_do.instance_variable_get(:@block)).to_not include(nil)
+    expect(forth_do.instance_variable_get(:@block)).to include('I', ForthDot, ForthRot, ForthDump)
+    expect do
+      interpreter.interpret_line(%w[3 0 do 3 loop . . .], false)
+    end.to output('3 3 3 ').to_stdout
   end
 
   # Test that when stop_if_empty is true, it will error if there is no 'loop'.
@@ -241,7 +243,6 @@ describe ForthBegin do
   let(:forth_begin) { ForthBegin.new(%w[1 .], stdin, false) }
 
   it 'reads until until' do
-    expect(forth_begin.remainder).to eq %w[]
     expect(forth_begin.instance_variable_get(:@block)).to_not include(nil)
     expect(forth_begin.instance_variable_get(:@block)).to_not include('UNTIL')
   end

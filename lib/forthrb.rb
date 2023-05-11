@@ -11,6 +11,7 @@ require 'forthrb/utils'
 # from the source definied on creation. interpret_line takes
 # an array of words and evaluates them on the stack.
 class ForthInterpreter
+  include ClassConvert
   attr_reader :stack, :heap, :constants, :user_words
   # strings, '.', and eval don't print newlines after they are called, so they instead
   # update this variable so the interpreter will print one before the next prompt.
@@ -22,10 +23,6 @@ class ForthInterpreter
     @heap = ForthVarHeap.new
     @constants = {}
     @user_words = {}
-    @newline = false
-    @symbol_map = { '+' => 'add', '-' => 'sub', '*' => 'mul', '/' => 'div', '.' => 'dot', '=' => 'equal',
-                    '<' => 'lesser', '>' => 'greater', '."' => 'string', '(' => 'comment', '!' => 'set_var',
-                    '@' => 'get_var', ':' => 'word_def', '::' => 'load_file' }
   end
 
   # runs the interpreter on the source provided on creation.
@@ -70,7 +67,7 @@ class ForthInterpreter
   # Identifies if a word is a system word or a user defined word,
   # to prevent word or variable definitions overwriting system ones.
   def system?(word)
-    !klass(name(word)).nil? || @user_words.key?(word.to_sym) || @constants.key?(word.to_sym) || @heap.defined?(word)
+    !str_to_class(word).nil? || @user_words.key?(word.to_sym) || @constants.key?(word.to_sym) || @heap.defined?(word)
   end
 
   # Just calling 'warn' will put error messages on the same line as the output
@@ -90,7 +87,7 @@ class ForthInterpreter
     if word.is_a? ForthKeyWord
       word.eval(self)
       line
-    elsif (obj = klass(name(word)))
+    elsif (obj = str_to_class(word))
       obj = obj.new(line, @source, bad_on_empty)
       obj.eval(self)
       obj.remainder
@@ -120,25 +117,5 @@ class ForthInterpreter
     return err "#{SYNTAX} '#{word.upcase}' without opening 'IF'" if %w[else then].include?(word)
 
     err "#{BAD_WORD} Unknown word '#{word}'"
-  end
-
-  # Converts a word string into a class name. Prevents using
-  # class names directly in the interpreter, by only allowing words from the symbol
-  # map or the keywords list. In the case of the symbol map, does not allow the
-  # converted value to be used directly. (I.e + -> add, but if word is 'add' it
-  # will not be converted to 'ForthAdd', only '+' will.)
-  def name(word)
-    return '' if word.nil? || @symbol_map.value?(word = word.downcase)
-
-    word = @symbol_map.fetch(word, word.gsub('_', ''))
-    "Forth#{word.split('_').map!(&:capitalize).join('')}"
-  end
-
-  # Handles converting a string into a class name, with
-  # error handling for non-existant classes
-  def klass(class_name)
-    ForthKeyWord.const_get(class_name)
-  rescue NameError
-    nil
   end
 end

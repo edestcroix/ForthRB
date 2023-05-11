@@ -9,6 +9,22 @@ BAD_ADDRESS = "\e[31m[BAD ADDRESS]\e[0m"
 STACK_UNDERFLOW = "\e[31m[STACK UNDERFLOW]\e[0m"
 BAD_LOAD = "\e[31m[BAD LOAD]\e[0m"
 
+SYMBOL_MAP = { '+' => 'add', '-' => 'sub', '*' => 'mul', '/' => 'div', '.' => 'dot', '=' => 'equal',
+               '<' => 'lesser', '>' => 'greater', '."' => 'string', '(' => 'comment', '!' => 'set_var',
+               '@' => 'get_var', ':' => 'word_def', '::' => 'load_file' }.freeze
+
+# Converts a string to a ForthKeyWord class.
+module ClassConvert
+  def str_to_class(word)
+    return nil if word.nil? || SYMBOL_MAP.value?(word = word.downcase)
+
+    word = SYMBOL_MAP.fetch(word, word.gsub('_', ''))
+    ForthKeyWord.const_get("Forth#{word.split('_').map!(&:capitalize).join('')}")
+  rescue NameError
+    nil
+  end
+end
+
 # extend String class to add integer check.
 class String
   def integer?
