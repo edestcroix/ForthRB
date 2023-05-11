@@ -22,6 +22,7 @@ class ForthInterpreter
     @stack = []
     @heap = ForthVarHeap.new
     @constants = {}
+    @newline = false
     @user_words = {}
   end
 
