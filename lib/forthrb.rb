@@ -56,7 +56,7 @@ class ForthInterpreter
   # and calling interpret. If the file is not found, warn the user.
   def load(file)
     old_source = @source
-    File.expand_path! file
+    file = File.expand_path file
     return warn "#{BAD_LOAD} File '#{file}' not found" unless File.exist?(file)
 
     @source = Source.new(File.open(file))
