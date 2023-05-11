@@ -49,7 +49,7 @@ class ForthInterpreter
       elsif @user_words.key?((word = word.downcase).to_sym)
         interpret_line(@user_words[word.to_sym].dup, true)
       else
-        @stack << eval_value(word)
+        break unless eval_value(word)
       end
     end
   end
@@ -101,14 +101,15 @@ class ForthInterpreter
   def eval_value(word)
     # integer? method added by extending String in utils.rb
     if word.integer?
-      word.to_i
+      @stack << word.to_i
     elsif @heap.defined? word
-      @heap.get_address word
+      @stack << @heap.get_address(word)
     elsif @constants.key? word.to_sym
-      @constants[word.to_sym]
+      @stack << @constants[word.to_sym]
     else
-      err_invalid word
+      return err_invalid word
     end
+    true
   end
 
   # Sends the appropriate warning message based on the word.
