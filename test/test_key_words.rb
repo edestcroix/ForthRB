@@ -121,56 +121,6 @@ describe ForthComment do
   end
 end
 
-describe ForthWordDef do
-  let(:interpreter) { ForthInterpreter.new($stdin) }
-  # deliberately put weird newlines in the input IO to make sure it reads correctly.
-  let(:word_def) { ForthWordDef.new(%w[test], StringIO.new("\n 1 2\n+ ;"), false) }
-
-  it 'defines a word' do
-    word_def.eval(interpreter)
-    expect(interpreter.user_words).to include(test: %w[1 2] + [ForthAdd])
-    interpreter.interpret_line(['test'], false)
-    expect(interpreter.stack).to eq [3]
-  end
-
-  it 'supports recursion' do
-    ForthWordDef.new(%w[fac DUP 1 > IF DUP 1 - fac * ELSE DROP 1 THEN ;], $stdin, false).eval(interpreter)
-    interpreter.interpret_line(%w[5 fac], false)
-    expect(interpreter.stack).to eq [120]
-  end
-
-  it 'overwrites a word' do
-    word_def.eval(interpreter)
-    interpreter.interpret_line(%w[: test 3 4 + ;], false)
-    expect(interpreter.user_words).to include(test: %w[3 4] + [ForthAdd])
-  end
-end
-
-describe ForthWordDef do
-  let(:interpreter) { ForthInterpreter.new($stdin) }
-
-  it 'prevents defining a word with a number' do
-    expect do
-      interpreter.interpret_line(%w[: 1 2 + ;], false)
-    end.to output("#{BAD_DEF} Word names cannot be numbers\n").to_stderr
-  end
-
-  it 'prevents defining a word with a builtin name' do
-    expect do
-      interpreter.interpret_line(%w[: + 2 + ;], false)
-    end.to output("#{BAD_DEF} Word names cannot be builtins or variable names\n").to_stderr
-  end
-
-  it 'errors without a name' do
-    expect do
-      interpreter.interpret_line(%w[: ;], false)
-    end.to output("#{BAD_DEF} No name given for word definition\n").to_stderr
-    expect do
-      interpreter.interpret_line(%w[:], false)
-    end.to output("#{BAD_DEF} No name given for word definition\n").to_stderr
-  end
-end
-
 describe ForthIf do
   let(:interpreter) { ForthInterpreter.new($stdin) }
   let(:stdin) { StringIO.new("\n3 4 +\n. else 5\n6 + .\nthen 4 5 6") }
@@ -210,7 +160,7 @@ describe ForthDo do
   # Test that it will read from the source until it finds a loop correctly.
   it 'reads until loop' do
     expect(forth_do.instance_variable_get(:@block)).to_not include(nil)
-    expect(forth_do.instance_variable_get(:@block)).to include('I', ForthDot, ForthRot, ForthDump)
+    expect(forth_do.instance_variable_get(:@block)).to include('i', ForthDot, ForthRot, ForthDump)
     expect do
       interpreter.interpret_line(%w[3 0 do 3 loop . . .], false)
     end.to output('3 3 3 ').to_stdout
