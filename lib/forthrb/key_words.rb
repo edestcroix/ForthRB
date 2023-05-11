@@ -321,7 +321,7 @@ class ForthMultiLine < ForthKeyWord
 
   def read_until(line, block)
     loop do
-      line = @source.gets.split if line.empty? && !@stop_if_empty
+      line = read_source if line.empty? && !@stop_if_empty
       return [] unless check_good(line)
       break if (word = line.shift) && word.downcase == @end_word
 
@@ -347,6 +347,18 @@ class ForthMultiLine < ForthKeyWord
   def check_good(line)
     (@stop_if_empty && line.empty?) || line.nil? ? @good = false : true
   end
+
+  # Reads a line from the source and splits it into an array,
+  # or will raise a warning if the line is nil to properly handle EOF
+  # when reading from a file and not stdin. Calls eof_warn to send
+  # the warning so subclasses can override it.
+  def read_source
+    eof_warn unless (line = @source.gets&.split)
+    line
+  end
+
+  def eof_warn
+    warn "#{SYNTAX} Unexpected end of file"
   end
 end
 
@@ -397,6 +409,12 @@ class ForthWordDef < ForthMultiLine
 
     interpeter.user_words[@name.to_sym] = @block
   end
+
+  private
+
+  def eof_warn
+    warn "#{SYNTAX} Unexpected end of file in word definition, expected ';'"
+  end
 end
 
 # Holds a forth IF statement. Reads into @true_block until it finds an ELSE or THEN. If
@@ -422,6 +440,8 @@ class ForthIf < ForthMultiLine
     end
   end
 
+  def eof_warn
+    warn "#{SYNTAX} Unexpected end of file in IF statement, expected 'THEN'"
   end
 end
 
@@ -455,6 +475,10 @@ class ForthDo < ForthMultiLine
       interpreter.interpret_line(block, true)
     end
   end
+
+  def eof_warn
+    warn "#{SYNTAX} Unexpected end of file in DO loop, expected 'LOOP'"
+  end
 end
 
 # Implements a BEGIN loop. Reads into the block until an UNTIL is found.
@@ -477,6 +501,10 @@ class ForthBegin < ForthMultiLine
       return if underflow?(interpreter)
       break unless interpreter.stack.pop.zero?
     end
+  end
+
+  def eof_warn
+    warn "#{SYNTAX} Unexpected end of file in BEGIN loop, expected 'UNTIL'"
   end
 end
 
