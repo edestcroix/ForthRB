@@ -10,9 +10,11 @@ require_relative 'utils'
 class ForthKeyWord
   attr_reader :remainder
 
-  # also, the wildcard is used to catch any extra arguments that may be passed in
-  # for more complex words that inherit from this class (Like ForthString, ForthIf, etc.)
-  def initialize(line, *)
+  # Every forth keyword must take no more than two arguments
+  # on creation, theese being the line to parse, and the input source to
+  # get more lines from if necessary. (Sublcasses that don't get created
+  # by the ForthInterpreter don't have to follow this rule.)
+  def initialize(line, _)
     @remainder = line
   end
 
@@ -31,8 +33,8 @@ end
 # All math operations inherit from this, because the only
 # difference between them is the operator they use.
 class ForthMathWord < ForthKeyWord
-  def initialize(line, opr, *)
-    super(line)
+  def initialize(line, opr)
+    super(line, nil)
     @opr = opr
   end
 
@@ -50,56 +52,56 @@ end
 
 # Forth + operation
 class ForthAdd < ForthMathWord
-  def initialize(line, *)
+  def initialize(line, _)
     super(line, :+)
   end
 end
 
 # Forth - operation
 class ForthSub < ForthMathWord
-  def initialize(line, *)
+  def initialize(line, _)
     super(line, :-)
   end
 end
 
 # Forth * operation
 class ForthMul < ForthMathWord
-  def initialize(line, *)
+  def initialize(line, _)
     super(line, :*)
   end
 end
 
 # Forth / operation
 class ForthDiv < ForthMathWord
-  def initialize(line, *)
+  def initialize(line, _)
     super(line, :/)
   end
 end
 
 # Forth MOD operation
 class ForthMod < ForthMathWord
-  def initialize(line, *)
+  def initialize(line, _)
     super(line, :%)
   end
 end
 
 # Forth AND operation
 class ForthAnd < ForthMathWord
-  def initialize(line, *)
+  def initialize(line, _)
     super(line, :&)
   end
 end
 
 # Forth OR operation
 class ForthOr < ForthMathWord
-  def initialize(line, *)
+  def initialize(line, _)
     super(line, :|)
   end
 end
 
 # Forth XOR operation
 class ForthXor < ForthMathWord
-  def initialize(line, *)
+  def initialize(line, _)
     super(line, :^)
   end
 end
@@ -248,9 +250,9 @@ end
 
 # Parent class for Variable and Constant definition objects.
 class ForthVarDefine < ForthKeyWord
-  def initialize(line, *)
+  def initialize(line, _)
     @name = line.shift&.downcase
-    super(line)
+    super
   end
 
   private
@@ -308,11 +310,10 @@ end
 # Parent class for Forth Words that can span multiple lines.
 class ForthMultiLine < ForthKeyWord
   include ClassConvert
-  def initialize(line, source, stop_if_empty, end_word: '')
-    super(line)
+  def initialize(line, source, end_word: '')
+    super(line, nil)
     @source = source
     @good = true
-    @stop_if_empty = stop_if_empty
     @end_word = end_word
     @remainder = read_until(line, @block = []) if line
   end
@@ -321,8 +322,7 @@ class ForthMultiLine < ForthKeyWord
 
   def read_until(line, block)
     loop do
-      line = read_source if line.empty? && !@stop_if_empty
-      return [] unless check_good(line)
+      (return [] unless (line = read_source)) if line.empty?
       break if (word = line.shift) && word.downcase == @end_word
 
       line = add_to_block(block, word, line)
@@ -335,7 +335,7 @@ class ForthMultiLine < ForthKeyWord
   # after creating the object, or the line as-is if no object was created.
   def add_to_block(block, word, line)
     unless @no_obj
-      obj = str_to_class(word)&.new(line, @source, @stop_if_empty)
+      obj = str_to_class(word)&.new(line, @source)
       block << obj if obj
       return obj.remainder if obj
     end
@@ -344,21 +344,13 @@ class ForthMultiLine < ForthKeyWord
     line
   end
 
-  def check_good(line)
-    (@stop_if_empty && line.empty?) || line.nil? ? @good = false : true
-  end
-
   # Reads a line from the source and splits it into an array,
   # or will raise a warning if the line is nil to properly handle EOF
   # when reading from a file and not stdin. Calls eof_warn to send
   # the warning so subclasses can override it.
   def read_source
-    eof_warn unless (line = @source.gets&.split)
+    @good = false unless (line = @source.gets&.split)
     line
-  end
-
-  def eof_warn
-    warn "#{SYNTAX} Unexpected end of file"
   end
 end
 
@@ -367,9 +359,9 @@ end
 # there is no ", it raises a warning on eval when stop_if_empty
 # is true, otherwise it keeps reading until it finds one.
 class ForthString < ForthMultiLine
-  def initialize(*args)
+  def initialize(line, source)
     @no_obj = true
-    super(*args, end_word: '"')
+    super(line, source, end_word: '"')
   end
 
   def eval(interpreter)
@@ -383,8 +375,8 @@ end
 # Forth Comment. Behaves the same as ForthString, except doesn't print anything.
 class ForthComment < ForthMultiLine
   @no_obj = true
-  def initialize(*args)
-    super(*args, end_word: ')')
+  def initialize(line, source)
+    super(line, source, end_word: ')')
   end
 
   def eval(interpreter)
@@ -396,24 +388,22 @@ end
 # then copies the input as-is into @block. On eval, updates the
 # interpreter's user_words hash with the new name and block.
 class ForthWordDef < ForthMultiLine
-  def initialize(line, source, *)
+  def initialize(line, source)
     @name = line.shift&.downcase
-    super(line, source, @name.nil? || @name == ';', end_word: ';')
+    @remainder = line
+    return if @name.nil? || @name == ';'
+
+    super(line, source, end_word: ';')
   end
 
-  def eval(interpeter)
-    return interpeter.err "#{BAD_DEF} No name given for word definition" if @name.nil? || @name == ';'
-    return interpeter.err "#{BAD_DEF} Word names cannot be builtins or variable names"\
-    if interpeter.system?(@name) && !interpeter.user_words.key?(@name.to_sym)
-    return interpeter.err "#{BAD_DEF} Word names cannot be numbers" if @name.integer?
+  def eval(interpreter)
+    return interpreter.err "#{BAD_DEF} No name given for word definition" if @name.nil? || @name == ';'
+    return interpreter.err "#{BAD_DEF} Word names cannot be builtins or variable names"\
+    if interpreter.system?(@name) && !interpreter.user_words.key?(@name.to_sym)
+    return interpreter.err "#{BAD_DEF} Word names cannot be numbers" if @name.integer?
+    return interpreter.err "#{SYNTAX} ':' without closing ';'" unless @good
 
-    interpeter.user_words[@name.to_sym] = @block
-  end
-
-  private
-
-  def eof_warn
-    warn "#{SYNTAX} Unexpected end of file in word definition, expected ';'"
+    interpreter.user_words[@name.to_sym] = @block
   end
 end
 
@@ -421,8 +411,8 @@ end
 # it finds a THEN, it reads into @false_block until it finds a THEN. On eval, pops
 # the top of the stack and if it's 0, evaluates @false_block, otherwise @true_block.
 class ForthIf < ForthMultiLine
-  def initialize(line, source, stop_if_empty)
-    super(line, source, stop_if_empty, end_word: 'then')
+  def initialize(line, source)
+    super(line, source, end_word: 'then')
     else_index = @block.index('else') || @block.length
     @false_block = @block[else_index + 1..]
     @true_block = @block[0...else_index]
@@ -434,14 +424,10 @@ class ForthIf < ForthMultiLine
     return if underflow?(interpreter)
 
     if interpreter.stack.pop.zero?
-      interpreter.interpret_line(@false_block.dup, true)
+      interpreter.interpret_line(@false_block.dup)
     else
-      interpreter.interpret_line(@true_block.dup, true)
+      interpreter.interpret_line(@true_block.dup)
     end
-  end
-
-  def eof_warn
-    warn "#{SYNTAX} Unexpected end of file in IF statement, expected 'THEN'"
   end
 end
 
@@ -451,8 +437,8 @@ end
 # of blocks needed to execute the loop. For each iteration, it duplicates
 # the base block, and replaces any I in the block with the current iteration value.
 class ForthDo < ForthMultiLine
-  def initialize(*args)
-    super(*args, end_word: 'loop')
+  def initialize(line, source)
+    super(line, source, end_word: 'loop')
   end
 
   def eval(interpreter)
@@ -472,12 +458,8 @@ class ForthDo < ForthMultiLine
   def do_loop(interpreter, start, limit)
     (start...limit).each do |i|
       block = @block.dup.map { |w| w.is_a?(String) && w.downcase == 'i' ? i.to_s : w }
-      interpreter.interpret_line(block, true)
+      interpreter.interpret_line(block)
     end
-  end
-
-  def eof_warn
-    warn "#{SYNTAX} Unexpected end of file in DO loop, expected 'LOOP'"
   end
 end
 
@@ -485,8 +467,8 @@ end
 # Evaluates by repeatedy popping a value off the stack and evaluating
 # its block until the value is non-zero.
 class ForthBegin < ForthMultiLine
-  def initialize(*args)
-    super(*args, end_word: 'until')
+  def initialize(line, source)
+    super(line, source, end_word: 'until')
   end
 
   def eval(interpreter)
@@ -495,24 +477,20 @@ class ForthBegin < ForthMultiLine
     # This should be the equivalent of the UNTIL popping the stack
     # and restarting at the BEGIN if non-zero.
     loop do
-      interpreter.interpret_line(@block.dup, true)
+      interpreter.interpret_line(@block.dup)
 
       # NOTE: Should STACK_UNDERFLOW be raised if the stack is empty, or should the loop just halt?
       return if underflow?(interpreter)
       break unless interpreter.stack.pop.zero?
     end
   end
-
-  def eof_warn
-    warn "#{SYNTAX} Unexpected end of file in BEGIN loop, expected 'UNTIL'"
-  end
 end
 
 # loads and runs a file.
 class ForthLoadFile < ForthKeyWord
-  def initialize(line, *)
+  def initialize(line, _)
     @filename = line.shift
-    super(line)
+    super
   end
 
   def eval(interpreter)

@@ -15,21 +15,21 @@ describe ForthInterpreter do
   let(:interpreter) { ForthInterpreter.new($stdin) }
 
   it 'does math operations' do
-    interpreter.interpret_line(%w[1 2 +], false)
+    interpreter.interpret_line(%w[1 2 +])
     expect(interpreter.stack).to eq [3]
-    interpreter.interpret_line(%w[4 -], false)
+    interpreter.interpret_line(%w[4 -])
     expect(interpreter.stack).to eq [-1]
-    interpreter.interpret_line(%w[3 *], false)
+    interpreter.interpret_line(%w[3 *])
     expect(interpreter.stack).to eq [-3]
-    interpreter.interpret_line(%w[-1 /], false)
+    interpreter.interpret_line(%w[-1 /])
     expect(interpreter.stack).to eq [3]
   end
 
   it 'does comparisons' do
-    interpreter.interpret_line(%w[1 2 <], false)
-    interpreter.interpret_line(%w[1 2 >], false)
-    interpreter.interpret_line(%w[1 2 =], false)
-    interpreter.interpret_line(%w[1 1 =], false)
+    interpreter.interpret_line(%w[1 2 <])
+    interpreter.interpret_line(%w[1 2 >])
+    interpreter.interpret_line(%w[1 2 =])
+    interpreter.interpret_line(%w[1 1 =])
     expect(interpreter.stack).to eq [-1, 0, 0, -1]
   end
 end
