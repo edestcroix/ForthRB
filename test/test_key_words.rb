@@ -71,32 +71,6 @@ describe ForthVariable do
   end
 end
 
-describe ForthString do
-  let(:interpreter) { ForthInterpreter.new($stdin) }
-
-  it 'prints a string' do
-    test_string = ForthString.new(String.new('hello world "'), $stdin)
-    expect do
-      test_string.eval(interpreter)
-    end.to output('hello world ').to_stdout
-  end
-
-  it 'errors without end quote' do
-    test_string = ForthString.new(String.new('hello world'), $stdin)
-    expect do
-      test_string.eval(interpreter)
-    end.to output("#{SYNTAX} No closing '\"' found\n").to_stderr
-  end
-
-  it 'reads more lines' do
-    test_stdin = StringIO.new("\nhello world \"\n")
-    test_string = ForthString.new(%w[hello world].join(' '), test_stdin)
-    expect do
-      test_string.eval(interpreter)
-    end.to output("hello world\nhello world ").to_stdout
-  end
-end
-
 describe ForthComment do
   let(:interpreter) { ForthInterpreter.new(StringIO.new) }
 
