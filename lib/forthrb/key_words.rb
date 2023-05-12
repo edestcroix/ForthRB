@@ -317,17 +317,18 @@ class ForthMultiLine < ForthKeyWord
     @source = source
     @good = true
     @end_word = end_word
-    @remainder = read_until(line, @block = []) if line
+    @block = []
+    @remainder = read_until(line) if line
   end
 
   private
 
-  def read_until(line, block)
+  def read_until(line)
     loop do
-      (return [] unless (line = read_source)) if line == '' || line.empty?
+      (return [] unless (line = read_source)) if line.empty?
       break if (word = get_word(line)) && word.downcase == @end_word
 
-      line = add_to_block(block, word, line)
+      line = add_to_block(word, line)
     end
     line
   end
@@ -335,21 +336,20 @@ class ForthMultiLine < ForthKeyWord
   # adds the word to the block, or if @no_obj is true, adds the
   # converted object to the block. Returns the remainder of the line
   # after creating the object, or the line as-is if no object was created.
-  def add_to_block(block, word, line)
-    unless @no_obj
-      obj = str_to_class(word)&.new(line, @source)
-      block << obj if obj
-      return obj.remainder if obj
+  def add_to_block(word, line)
+    obj = str_to_class(word)&.new(line, @source)
+    if obj
+      @block << obj
+      return obj.remainder
     end
 
-    block << (@no_obj ? word : word.downcase) if word
+    @block << word.downcase if word
     line
   end
 
-  # Reads a line from the source and splits it into an array,
-  # or will raise a warning if the line is nil to properly handle EOF
-  # when reading from a file and not stdin. Calls eof_warn to send
-  # the warning so subclasses can override it.
+  # Reads the next line from the source. If there is no next line,
+  # sets @good to false and returns nil. On eval, objects will print warnings
+  # if @good is false.
   def read_source
     @good = false unless (line = @source.gets)
     line
@@ -361,9 +361,8 @@ end
 # there is no ", it raises a warning on eval when stop_if_empty
 # is true, otherwise it keeps reading until it finds one.
 class ForthString < ForthMultiLine
-  def initialize(line, source)
-    @no_obj = true
-    super(line, source, end_word: '"')
+  def initialize(line, source, end_word: '"')
+    super(line, source, end_word: end_word)
   end
 
   def eval(interpreter)
@@ -375,22 +374,21 @@ class ForthString < ForthMultiLine
 
   private
 
-  def read_until(line, _)
+  def read_until(line)
     # read input exactly as it appears until a " character
     @string = String.new
-    while (i = line.index('"')).nil?
+    until (i = line.index(@end_word))
       @string << line
-      (return [] unless (line = read_source))
+      return [] unless (line = read_source)
     end
     @string << (i.zero? ? '' : line[0..i - 1])
-    @string = @string[1..] if [' ', '"'].include? @string[0]
+    @string = @string[1..] if @string[0] == ' '
     line[i + 1..].strip
   end
 end
 
 # Forth Comment. Behaves the same as ForthString, except doesn't print anything.
-class ForthComment < ForthMultiLine
-  @no_obj = true
+class ForthComment < ForthString
   def initialize(line, source)
     super(line, source, end_word: ')')
   end

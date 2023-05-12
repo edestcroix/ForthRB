@@ -116,7 +116,7 @@ describe ForthComment do
 
   it 'reads more lines' do
     test_stdin = StringIO.new("hello world )\n")
-    ForthComment.new(%w[hello world], test_stdin)
+    ForthComment.new(%w[hello world].join(' '), test_stdin)
     expect(test_stdin.eof?).to be true
   end
 end
@@ -190,7 +190,7 @@ end
 describe ForthBegin do
   let(:stdin) { StringIO.new("\n 4 5 + . .\" HI \" UNTIL") }
   let(:interpreter) { ForthInterpreter.new(stdin) }
-  let(:forth_begin) { ForthBegin.new(%w[1 .], stdin) }
+  let(:forth_begin) { ForthBegin.new(%w[1 .].join(' '), stdin) }
 
   it 'reads until until' do
     expect(forth_begin.instance_variable_get(:@block)).to_not include(nil)
