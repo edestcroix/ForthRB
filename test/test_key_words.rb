@@ -52,7 +52,7 @@ describe ForthVariable do
   let(:interpreter) { ForthInterpreter.new(stdin) }
 
   it 'creates a variable' do
-    interpreter.interpret_line(%w[variable test test])
+    interpreter.interpret_line(String.new('variable test test'))
     expect(interpreter.stack).to eq [1000]
   end
 
@@ -64,7 +64,7 @@ describe ForthVariable do
   end
 
   it 'doesn\'t overwrite an existing variable' do
-    interpreter.interpret_line(%w[variable test])
+    interpreter.interpret_line(String.new('variable test'))
     expect do
       interpreter.interpret_line(%w[variable test])
     end.to output("#{BAD_DEF} 'test' is already defined\n").to_stderr
@@ -75,14 +75,14 @@ describe ForthString do
   let(:interpreter) { ForthInterpreter.new($stdin) }
 
   it 'prints a string' do
-    test_string = ForthString.new(%w[hello world "], $stdin)
+    test_string = ForthString.new(String.new('hello world "'), $stdin)
     expect do
       test_string.eval(interpreter)
     end.to output('hello world ').to_stdout
   end
 
   it 'errors without end quote' do
-    test_string = ForthString.new(%w[hello world], $stdin)
+    test_string = ForthString.new(String.new('hello world'), $stdin)
     expect do
       test_string.eval(interpreter)
     end.to output("#{SYNTAX} No closing '\"' found\n").to_stderr
@@ -90,10 +90,10 @@ describe ForthString do
 
   it 'reads more lines' do
     test_stdin = StringIO.new("\nhello world \"\n")
-    test_string = ForthString.new(%w[hello world], test_stdin)
+    test_string = ForthString.new(%w[hello world].join(' '), test_stdin)
     expect do
       test_string.eval(interpreter)
-    end.to output('hello world hello world ').to_stdout
+    end.to output("hello world\nhello world ").to_stdout
   end
 end
 
@@ -101,14 +101,14 @@ describe ForthComment do
   let(:interpreter) { ForthInterpreter.new(StringIO.new) }
 
   it 'ignores a comment' do
-    test_comment = ForthComment.new(%w[hello world )], $stdin)
+    test_comment = ForthComment.new(String.new('hello world )'), $stdin)
     expect do
       test_comment.eval(interpreter)
     end.to_not output.to_stdout
   end
 
   it 'errors without end parenthesis' do
-    test_comment = ForthComment.new(%w[hello world], $stdin)
+    test_comment = ForthComment.new(%w[hello world].join(' '), $stdin)
     expect do
       test_comment.eval(interpreter)
     end.to output("#{SYNTAX} No closing ')' found\n").to_stderr
@@ -124,7 +124,7 @@ end
 describe ForthIf do
   let(:interpreter) { ForthInterpreter.new($stdin) }
   let(:stdin) { StringIO.new("\n3 4 +\n. else 5\n6 + .\nthen 4 5 6") }
-  let(:forth_if) { ForthIf.new(%w[." hello world "], stdin) }
+  let(:forth_if) { ForthIf.new(%w[." hello world "].join(' '), stdin) }
 
   it 'reads until else or then' do
     expect(forth_if.instance_variable_get(:@true_block)).to include(ForthString, ForthAdd, ForthDot)
@@ -155,21 +155,21 @@ end
 
 describe ForthDo do
   let(:interpreter) { ForthInterpreter.new($stdin) }
-  let(:forth_do) { ForthDo.new(%w[I .], StringIO.new("\nrot dump\nloop 3 4")) }
+  let(:forth_do) { ForthDo.new(%w[I .].join(' '), StringIO.new("\nrot dump\nloop 3 4")) }
 
   # Test that it will read from the source until it finds a loop correctly.
   it 'reads until loop' do
     expect(forth_do.instance_variable_get(:@block)).to_not include(nil)
     expect(forth_do.instance_variable_get(:@block)).to include('i', ForthDot, ForthRot, ForthDump)
     expect do
-      interpreter.interpret_line(%w[3 0 do 3 loop . . .])
+      interpreter.interpret_line(%w[3 0 do 3 loop . . .].join(' '))
     end.to output('3 3 3 ').to_stdout
   end
 
   # Test that when stop_if_empty is true, it will error if there is no 'loop'.
   it 'errors without loop' do
     expect do
-      ForthDo.new(%w[." hi "], $stdin).eval(interpreter)
+      ForthDo.new(%w[." hi "].join(' '), $stdin).eval(interpreter)
     end.to output("#{SYNTAX} 'DO' without closing 'LOOP'\n").to_stderr
   end
 
@@ -199,7 +199,7 @@ describe ForthBegin do
 
   it 'errors without until' do
     expect do
-      ForthBegin.new(%w[." hi "], $stdin).eval(interpreter)
+      ForthBegin.new(%w[." hi "].join(' '), $stdin).eval(interpreter)
     end.to output("#{SYNTAX} 'BEGIN' without closing 'UNTIL'\n").to_stderr
   end
 

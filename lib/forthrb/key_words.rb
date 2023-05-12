@@ -250,8 +250,9 @@ end
 
 # Parent class for Variable and Constant definition objects.
 class ForthVarDefine < ForthKeyWord
+  include LineParse
   def initialize(line, _)
-    @name = line.shift&.downcase
+    @name = get_word(line)&.downcase
     super
   end
 
@@ -310,6 +311,7 @@ end
 # Parent class for Forth Words that can span multiple lines.
 class ForthMultiLine < ForthKeyWord
   include ClassConvert
+  include LineParse
   def initialize(line, source, end_word: '')
     super(line, nil)
     @source = source
@@ -322,8 +324,8 @@ class ForthMultiLine < ForthKeyWord
 
   def read_until(line, block)
     loop do
-      (return [] unless (line = read_source)) if line.empty?
-      break if (word = line.shift) && word.downcase == @end_word
+      (return [] unless (line = read_source)) if line == '' || line.empty?
+      break if (word = get_word(line)) && word.downcase == @end_word
 
       line = add_to_block(block, word, line)
     end
@@ -349,7 +351,7 @@ class ForthMultiLine < ForthKeyWord
   # when reading from a file and not stdin. Calls eof_warn to send
   # the warning so subclasses can override it.
   def read_source
-    @good = false unless (line = @source.gets&.split)
+    @good = false unless (line = @source.gets)
     line
   end
 end
@@ -367,8 +369,22 @@ class ForthString < ForthMultiLine
   def eval(interpreter)
     return interpreter.err "#{SYNTAX} No closing '\"' found" unless @good
 
-    print "#{@block.join(' ')} "
+    print @string
     interpreter.newline = true
+  end
+
+  private
+
+  def read_until(line, _)
+    # read input exactly as it appears until a " character
+    @string = String.new
+    while (i = line.index('"')).nil?
+      @string << line
+      (return [] unless (line = read_source))
+    end
+    @string << (i.zero? ? '' : line[0..i - 1])
+    @string = @string[1..] if [' ', '"'].include? @string[0]
+    line[i + 1..].strip
   end
 end
 
@@ -389,7 +405,7 @@ end
 # interpreter's user_words hash with the new name and block.
 class ForthWordDef < ForthMultiLine
   def initialize(line, source)
-    @name = line.shift&.downcase
+    @name = get_word(line)&.downcase
     @remainder = line
     return if @name.nil? || @name == ';'
 
@@ -488,8 +504,9 @@ end
 
 # loads and runs a file.
 class ForthLoadFile < ForthKeyWord
+  include LineParse
   def initialize(line, _)
-    @filename = line.shift
+    @filename = get_word(line)
     super
   end
 

@@ -25,10 +25,22 @@ module ClassConvert
   end
 end
 
+# Common methods for parsing input lines.
+module LineParse
+  def get_word(line)
+    return line.shift unless line.is_a?(String)
+
+    word = line.slice!(/\S+/)
+    line.replace(line[1..]) if line.start_with?(' ')
+    line.replace('') unless word
+    word
+  end
+end
+
 # extend String class to add integer check.
 class String
   def integer?
-    self =~ /^-?\d+\.?\d*$/
+    to_i.to_s == self
   end
 end
 

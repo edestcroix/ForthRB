@@ -11,6 +11,7 @@ require 'forthrb/utils'
 # from the source definied on creation. interpret_line takes
 # an array of words and evaluates them on the stack.
 class ForthInterpreter
+  include LineParse
   include ClassConvert
   attr_reader :stack, :heap, :constants, :user_words
   # strings, '.', and eval don't print newlines after they are called, so they instead
@@ -29,7 +30,7 @@ class ForthInterpreter
   # runs the interpreter on the source provided on creation.
   def interpret
     while (line = @source.gets(prompt: true))
-      %W[quit\n exit\n].include?(line) ? exit(0) : interpret_line(line.split)
+      %W[quit\n exit\n].include?(line) ? exit(0) : interpret_line(line)
       puts '' if @newline
       @newline = false
     end
@@ -39,7 +40,7 @@ class ForthInterpreter
   # or both. bad_on_empty determines whether parsers should warn if they find an empty line,
   # or keep reading from stdin until they reach their terminating words.
   def interpret_line(line)
-    while (word = line.shift)
+    while (word = get_word(line))
       # if eval_word sets l to a non-nil value, update line to l as
       # l stores the remainder of the line after the word was evaluated.
       if (l = eval_word(word, line))
