@@ -443,7 +443,7 @@ class ForthIf < ForthMultiLine
     return if underflow?(interpreter)
 
     if interpreter.stack.pop.zero?
-      interpreter.interpret_line(@false_block.dup)
+      interpreter.interpret_line(@false_block.dup) if @false_block
     else
       interpreter.interpret_line(@true_block.dup)
     end

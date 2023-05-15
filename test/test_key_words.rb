@@ -118,6 +118,16 @@ describe ForthIf do
       forth_if.eval(interpreter)
     end.to output('11').to_stdout
   end
+end
+
+describe ForthIf do
+  let(:interpreter) { ForthInterpreter.new($stdin) }
+
+  it 'does nothing with false and no else' do
+    expect do
+      interpreter.interpret_line('0 if 3 . then'.+@)
+    end.to_not output.to_stdout
+  end
 
   it 'nests ifs' do
     expect do
