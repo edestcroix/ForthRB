@@ -331,24 +331,23 @@ class ForthMultiLine < ForthKeyWord
   def read_until(line)
     loop do
       (return [] unless (line = read_source)) if line.empty?
-      break if (word = get_word(line)) && word.downcase == @end_word
+      break if (word = get_word(line)) && word.casecmp?(@end_word)
 
       line = add_to_block(word, line)
     end
     line
   end
 
-  # adds the word to the block, or if @no_obj is true, adds the
-  # converted object to the block. Returns the remainder of the line
-  # after creating the object, or the line as-is if no object was created.
+  # Adds words read from the input line to the @block (as in: code block) list. If the word corresponds to
+  # a ForthKeyWord subclass, it creates said object from the word and parses it from
+  # the line as needed before adding it to the block.
   def add_to_block(word, line)
-    obj = str_to_class(word)&.new(line, @source)
-    if obj
+    if (obj = str_to_class(word)&.new(line, @source))
       @block << obj
       return obj.remainder
     end
 
-    @block << word.downcase if word
+    @block << word if word
     line
   end
 
@@ -433,7 +432,7 @@ end
 class ForthIf < ForthMultiLine
   def initialize(line, source)
     super(line, source, end_word: 'then')
-    else_index = @block.index('else') || @block.length
+    else_index = @block.find_index { |s| s.is_a?(String) && s.casecmp?('else') } || @block.length
     @false_block = @block[else_index + 1..]
     @true_block = @block[0...else_index]
   end
@@ -477,7 +476,7 @@ class ForthDo < ForthMultiLine
   # and interpret the block using the interprer
   def do_loop(interpreter, start, limit)
     (start...limit).each do |i|
-      block = @block.dup.map { |w| w.is_a?(String) && w.downcase == 'i' ? i.to_s : w }
+      block = @block.dup.map { |w| w.is_a?(String) && w.casecmp?('i') ? i.to_s : w }
       interpreter.interpret_line(block)
     end
   end

@@ -48,8 +48,8 @@ class ForthInterpreter
       # l stores the remainder of the line after the word was evaluated.
       if (l = eval_word(word, line))
         line = l
-      elsif @user_words.key?((word = word.downcase).to_sym)
-        interpret_line(@user_words[word.to_sym].dup)
+      elsif @user_words.key?(w = word.downcase.to_sym)
+        interpret_line(@user_words[w].dup)
       else
         break unless eval_value(word)
       end

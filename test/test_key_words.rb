@@ -134,7 +134,7 @@ describe ForthDo do
   # Test that it will read from the source until it finds a loop correctly.
   it 'reads until loop' do
     expect(forth_do.instance_variable_get(:@block)).to_not include(nil)
-    expect(forth_do.instance_variable_get(:@block)).to include('i', ForthDot, ForthRot, ForthDump)
+    expect(forth_do.instance_variable_get(:@block)).to include('I', ForthDot, ForthRot, ForthDump)
     expect do
       interpreter.interpret_line(%w[3 0 do 3 loop . . .].join(' '))
     end.to output('3 3 3').to_stdout

@@ -56,6 +56,6 @@ describe ForthInterpreter do
     err.rewind
     input.rewind
     expect(output.read).to eq "> 6 5\n[4]\n4> "
-    expect(err.read).to eq "\n#{BAD_WORD} Unknown word 'notaword'\n"
+    expect(err.read).to eq "\n#{BAD_WORD} Unknown word 'NOTAWORD'\n"
   end
 end
