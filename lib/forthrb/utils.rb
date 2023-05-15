@@ -30,8 +30,8 @@ module LineParse
   def get_word(line)
     return line.shift unless line.is_a?(String)
 
-    word = line.slice!(/\S+/)
     line.replace(line[1..]) if line.start_with?(' ')
+    word = line.slice!(/\S+/)
     line.replace('') unless word
     word
   end

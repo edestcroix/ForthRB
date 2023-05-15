@@ -382,7 +382,7 @@ class ForthString < ForthMultiLine
       return [] unless (line = read_source)
     end
     @string << (i.zero? ? '' : line[0..i - 1])
-    @string = @string[1..] if @string[0] == ' '
+    @string = @string[1..] if @string.start_with?(' ')
     line[i + 1..].strip
   end
 end

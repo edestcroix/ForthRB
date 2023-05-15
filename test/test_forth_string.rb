@@ -51,5 +51,16 @@ describe ForthString do
     expect do
       ForthString.new("hello  \n  world   \"  ", StringIO.new('')).eval(interpreter)
     end.to output("hello  \n  world   ").to_stdout
+
+    # first whitespace after the ." is always consumed by the interpreter, otherwise
+    # it would not be recognized as a keyword.
+    expect do
+      # calling interpreter directly here because the whitespace after the ." can
+      # be affected by the function call to get_word by whatever is parsing to get the ." out of the
+      # line, in which case the ForthString has no control over that. (Basically, the whitespace after the
+      # first word in the string is entirely the String's problem, but the whitespace after the ." can be affected
+      # by whatever was parsing the line before the string)
+      interpreter.interpret_line(String.new('."  hello" ."   world" ."    hi"'))
+    end.to output(' hello  world   hi').to_stdout
   end
 end
