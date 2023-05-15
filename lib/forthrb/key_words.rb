@@ -418,7 +418,7 @@ class ForthWordDef < ForthMultiLine
 
   def eval(interpreter)
     return interpreter.err "#{BAD_DEF} No name given for word definition" if @name.nil? || @name == ';'
-    return interpreter.err "#{BAD_DEF} Word names cannot be builtins or variable names"\
+    return interpreter.err "#{BAD_DEF} Word names cannot be builtins or variable names" \
     if interpreter.system?(@name) && !interpreter.user_words.key?(@name.to_sym)
     return interpreter.err "#{BAD_DEF} Word names cannot be numbers" if @name.integer?
     return interpreter.err "#{SYNTAX} ':' without closing ';'" unless @good

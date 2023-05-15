@@ -19,7 +19,7 @@ module ClassConvert
     return nil if word.nil? || SYMBOL_MAP.value?(word = word.downcase)
 
     word = SYMBOL_MAP.fetch(word, word.gsub('_', ''))
-    ForthKeyWord.const_get("Forth#{word.split('_').map!(&:capitalize).join('')}")
+    ForthKeyWord.const_get("Forth#{word.split('_').map!(&:capitalize).join}")
   rescue NameError
     nil
   end
