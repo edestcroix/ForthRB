@@ -14,9 +14,10 @@ class ForthInterpreter
   include LineParse
   include ClassConvert
   attr_reader :stack, :heap, :constants, :user_words
-  # strings, '.', and eval don't print newlines after they are called, so they instead
-  # update this variable so the interpreter will print one before the next prompt.
-  attr_accessor :newline
+
+  # booleans to determine if newlines or spaces should be printed in interpreter/keyword outputs
+  # Updated as needed by the interpreter and relevent keywords.
+  attr_accessor :newline, :space
 
   def initialize(source)
     @source = Source.new(source)
@@ -24,15 +25,16 @@ class ForthInterpreter
     @heap = ForthVarHeap.new
     @constants = {}
     @newline = false
+    @space = false
     @user_words = {}
   end
 
   # runs the interpreter on the source provided on creation.
   def interpret
     while (line = @source.gets(prompt: true))
+      @space = false && @newline = false
       %W[quit\n exit\n].include?(line) ? exit(0) : interpret_line(line)
       puts '' if @newline
-      @newline = false
     end
   end
 

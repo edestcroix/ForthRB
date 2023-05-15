@@ -118,8 +118,10 @@ class ForthDot < ForthKeyWord
   def eval(interpreter)
     return if underflow?(interpreter)
 
-    print "#{interpreter.stack.pop} "
+    print ' ' if interpreter.space
+    print interpreter.stack.pop
     interpreter.newline = true
+    interpreter.space = true
   end
 end
 
@@ -135,6 +137,7 @@ class ForthDump < ForthKeyWord
   def eval(interpreter)
     puts '' if interpreter.newline
     interpreter.newline = false
+    interpreter.space = false
     puts "[#{interpreter.stack.join(', ')}]"
   end
 end
@@ -153,8 +156,10 @@ class ForthEmit < ForthKeyWord
   def eval(interpreter)
     return if underflow?(interpreter)
 
-    print "#{interpreter.stack.pop.to_s[0].codepoints.join(' ')} "
+    print ' ' if interpreter.space
+    print interpreter.stack.pop.to_s[0].codepoints.join(' ')
     interpreter.newline = true
+    interpreter.space = true
   end
 end
 
@@ -370,6 +375,7 @@ class ForthString < ForthMultiLine
 
     print @string
     interpreter.newline = true
+    interpreter.space = false
   end
 
   private

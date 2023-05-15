@@ -109,21 +109,21 @@ describe ForthIf do
     expect do
       interpreter.interpret_line(%w[1])
       forth_if.eval(interpreter)
-    end.to output('hello world 7 ').to_stdout
+    end.to output('hello world 7').to_stdout
   end
 
   it 'evaluates false' do
     expect do
       interpreter.interpret_line(%w[0])
       forth_if.eval(interpreter)
-    end.to output('11 ').to_stdout
+    end.to output('11').to_stdout
   end
 
   it 'nests ifs' do
     expect do
       interpreter.interpret_line(%w[1])
       ForthIf.new(%w[1 if 4 . else 3 . then then], $stdin).eval(interpreter)
-    end.to output('4 ').to_stdout
+    end.to output('4').to_stdout
   end
 end
 
@@ -137,7 +137,7 @@ describe ForthDo do
     expect(forth_do.instance_variable_get(:@block)).to include('i', ForthDot, ForthRot, ForthDump)
     expect do
       interpreter.interpret_line(%w[3 0 do 3 loop . . .].join(' '))
-    end.to output('3 3 3 ').to_stdout
+    end.to output('3 3 3').to_stdout
   end
 
   # Test that when stop_if_empty is true, it will error if there is no 'loop'.
@@ -151,7 +151,7 @@ describe ForthDo do
     interpreter.interpret_line(%w[3 4 5 3 0])
     expect do
       forth_do.eval(interpreter)
-    end.to output("0 \n[4, 5, 3]\n1 \n[5, 3, 4]\n2 \n[3, 4, 5]\n").to_stdout
+    end.to output("0\n[4, 5, 3]\n1\n[5, 3, 4]\n2\n[3, 4, 5]\n").to_stdout
   end
 
   it 'nests loops' do
@@ -162,7 +162,7 @@ describe ForthDo do
 end
 
 describe ForthBegin do
-  let(:stdin) { StringIO.new("\n 4 5 + . .\" HI \" UNTIL") }
+  let(:stdin) { StringIO.new("\n 4 5 + . .\"  HI \" UNTIL") }
   let(:interpreter) { ForthInterpreter.new(stdin) }
   let(:forth_begin) { ForthBegin.new(%w[1 .].join(' '), stdin) }
 

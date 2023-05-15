@@ -44,7 +44,7 @@ describe ForthInterpreter do
     interpreter.interpret
     output.rewind
     input.rewind
-    expect(output.read).to eq "> 6 5 \n[4]\n4 \n> "
+    expect(output.read).to eq "> 6 5\n[4]\n4\n> "
   end
 
   it 'prints newlines for errors' do
@@ -55,7 +55,7 @@ describe ForthInterpreter do
     output.rewind
     err.rewind
     input.rewind
-    expect(output.read).to eq "> 6 5 \n[4]\n4 > "
+    expect(output.read).to eq "> 6 5\n[4]\n4> "
     expect(err.read).to eq "\n#{BAD_WORD} Unknown word 'notaword'\n"
   end
 end
