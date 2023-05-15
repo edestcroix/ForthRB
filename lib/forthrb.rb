@@ -32,7 +32,8 @@ class ForthInterpreter
   # runs the interpreter on the source provided on creation.
   def interpret
     while (line = @source.gets(prompt: true))
-      @space = false && @newline = false
+      @space = false
+      @newline = false
       %W[quit\n exit\n].include?(line) ? exit(0) : interpret_line(line)
       puts '' if @newline
     end
