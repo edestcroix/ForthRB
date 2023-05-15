@@ -473,11 +473,12 @@ class ForthDo < ForthMultiLine
   private
 
   # for each iteration from start to limit, set I to the current value,
-  # and interpret the block using the interprer
+  # and interpret the block using the interprer. Stop looping if interpret_line
+  # returs false, as this means an unknown word was encountered.
   def do_loop(interpreter, start, limit)
     (start...limit).each do |i|
       block = @block.dup.map { |w| w.is_a?(String) && w.casecmp?('i') ? i.to_s : w }
-      interpreter.interpret_line(block)
+      break unless interpreter.interpret_line(block)
     end
   end
 end
@@ -493,10 +494,8 @@ class ForthBegin < ForthMultiLine
   def eval(interpreter)
     return interpreter.err "#{SYNTAX} 'BEGIN' without closing 'UNTIL'" unless @good
 
-    # This should be the equivalent of the UNTIL popping the stack
-    # and restarting at the BEGIN if non-zero.
     loop do
-      interpreter.interpret_line(@block.dup)
+      break unless interpreter.interpret_line(@block.dup)
 
       # NOTE: Should STACK_UNDERFLOW be raised if the stack is empty, or should the loop just halt?
       return if underflow?(interpreter)

@@ -41,7 +41,8 @@ class ForthInterpreter
 
   # Interprets a line of Forth code. line is an array of either strings, ForthKeyWords,
   # or both. bad_on_empty determines whether parsers should warn if they find an empty line,
-  # or keep reading from stdin until they reach their terminating words.
+  # or keep reading from stdin until they reach their terminating words. Returns true if
+  # no unknown words were encountered, false otherwise.
   def interpret_line(line)
     while (word = get_word(line))
       # if eval_word sets l to a non-nil value, update line to l as
@@ -51,9 +52,10 @@ class ForthInterpreter
       elsif @user_words.key?(w = word.downcase.to_sym)
         interpret_line(@user_words[w].dup)
       else
-        break unless eval_value(word)
+        return unless eval_value(word)
       end
     end
+    true
   end
 
   # reads from a file by temporarily changing the source to a new Source object
