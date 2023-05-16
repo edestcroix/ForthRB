@@ -4,7 +4,7 @@ require_relative 'lib/forthrb/version'
 
 Gem::Specification.new do |spec|
   spec.name = 'forthrb'
-  spec.version = ForthInterpreter::VERSION
+  spec.version = ForthRB::VERSION
   spec.authors = ['Emmett de St. Croix']
   spec.email = ['emmett@edestcroix.ca']
 

@@ -4,7 +4,7 @@ require 'rspec/autorun'
 require 'forthrb'
 
 describe ForthOps::FString do
-  let(:interpreter) { ForthInterpreter.new($stdin) }
+  let(:interpreter) { ForthRB::ForthInterpreter.new($stdin) }
 
   it 'prints a string' do
     test_string = ForthOps::FString.new(String.new('hello world "'), $stdin)
@@ -30,7 +30,7 @@ describe ForthOps::FString do
 end
 
 describe ForthOps::FString do
-  let(:interpreter) { ForthInterpreter.new($stdin) }
+  let(:interpreter) { ForthRB::ForthInterpreter.new($stdin) }
   let(:blank_stdin) { StringIO.new('') }
 
   it 'doesn\'t need space before end quote' do

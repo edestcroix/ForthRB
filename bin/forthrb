@@ -12,7 +12,7 @@ if (filename = ARGV[0])
   rescue Errno::ENOENT
     warn "File '#{filename}' not found"
   end
-  ForthInterpreter.new(file).interpret if file
+  ForthRB::ForthInterpreter.new(file).interpret if file
 else
-  ForthInterpreter.new($stdin).interpret
+  ForthRB::ForthInterpreter.new($stdin).interpret
 end

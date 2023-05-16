@@ -4,7 +4,7 @@ require 'rspec/autorun'
 require 'forthrb'
 
 describe ForthOps::WordDef do
-  let(:interpreter) { ForthInterpreter.new($stdin) }
+  let(:interpreter) { ForthRB::ForthInterpreter.new($stdin) }
   # deliberately put weird newlines in the input IO to make sure it reads correctly.
   let(:word_def) { ForthOps::WordDef.new(%w[test], StringIO.new("\n 1 2\n+ ;")) }
 
@@ -29,7 +29,7 @@ describe ForthOps::WordDef do
 end
 
 describe ForthOps::WordDef do
-  let(:interpreter) { ForthInterpreter.new($stdin) }
+  let(:interpreter) { ForthRB::ForthInterpreter.new($stdin) }
 
   it 'prevents defining a word with a number' do
     expect do
@@ -54,7 +54,7 @@ describe ForthOps::WordDef do
 end
 
 describe ForthOps::WordDef do
-  let(:interpreter) { ForthInterpreter.new($stdin) }
+  let(:interpreter) { ForthRB::ForthInterpreter.new($stdin) }
   it 'accepts complex words' do
     $stdin = StringIO.new(%(
 : eggsize

@@ -1,5 +1,5 @@
 # frozen_string_literal: true
 
-class ForthInterpreter
+module ForthRB
   VERSION = '0.3.1'
 end

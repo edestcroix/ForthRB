@@ -5,9 +5,25 @@ require_relative 'utils'
 # Module that contains all supported Forth operations. For an operation to be recognized by the ForthInterpreter,
 # it must be part of this module. The keyword that activates the operation in the interprer is the name
 # of that operation's class. Only single-word names will be recognized, unless it is definied in the SYMBOL_MAP
-# in utils.rb, with underscors separating the word. (E.g the class WordDef is in the SYMBOL_MAP as ':' => word_def,
+# with underscors separating the word. (E.g the class WordDef is in the SYMBOL_MAP as ':' => word_def,
 # so the ':' keyword will create a ForthOps::WordDef object)
 module ForthOps
+  # assigns input symbols to the according ForthOps
+  SYMBOL_MAP = { '+' => 'add', '-' => 'sub', '*' => 'mul', '/' => 'div', '.' => 'dot', '=' => 'equal',
+                 '<' => 'lesser', '>' => 'greater', '."' => 'f_string', '(' => 'comment', '!' => 'set_var',
+                 '@' => 'get_var', ':' => 'word_def', '::' => 'load' }.freeze
+
+  # Returns the class in the ForthOps namespace with the provided name, nil
+  # if it does not exist. (Only converts single-word names, or symbols in SYMBOL_MAP)
+  def str_to_forth_op(word)
+    return nil if word.nil? || SYMBOL_MAP.value?(word = word.downcase)
+
+    word = SYMBOL_MAP.fetch(word, word.gsub('_', ''))
+    Module.const_get("ForthOps::#{word.split('_').map!(&:capitalize).join}")
+  rescue NameError
+    nil
+  end
+
   # Base class for all operations. Each operation on initialization takes in the line starting after
   # the keyword so it can parse it as necessary. Whatever is leftover from parsing is stored in @remainder,
   # so the interpreter can continue parsing from where the object left off. (I.e @remainder is the line after
@@ -321,7 +337,7 @@ module ForthOps
 
   # Parent class for Forth Words that can span multiple lines.
   class MultiLine < ForthOp
-    include ClassConvert
+    include ForthOps
     include LineParse
     def initialize(line, source, end_word: '')
       super(line, nil)
@@ -348,7 +364,7 @@ module ForthOps
     # a ForthOp subclass, it creates said object from the word and parses it from
     # the line as needed before adding it to the block.
     def add_to_block(word, line)
-      if (obj = str_to_class(word)&.new(line, @source))
+      if (obj = str_to_forth_op(word)&.new(line, @source))
         @block << obj
         return obj.remainder
       end

@@ -11,8 +11,8 @@ require 'forthrb'
 #   failures are easy to understand. Also make sure they have
 #   good coverage.
 
-describe ForthInterpreter do
-  let(:interpreter) { ForthInterpreter.new($stdin) }
+describe ForthRB::ForthInterpreter do
+  let(:interpreter) { ForthRB::ForthInterpreter.new($stdin) }
 
   it 'does math operations' do
     interpreter.interpret_line(%w[1 2 +])
@@ -34,9 +34,9 @@ describe ForthInterpreter do
   end
 end
 
-describe ForthInterpreter do
+describe ForthRB::ForthInterpreter do
   let(:output) { StringIO.new }
-  let(:interpreter) { ForthInterpreter.new($stdin) }
+  let(:interpreter) { ForthRB::ForthInterpreter.new($stdin) }
 
   it 'prints newlines when needed' do
     $stdout = output
@@ -60,9 +60,9 @@ describe ForthInterpreter do
   end
 end
 
-describe ForthInterpreter do
-  let(:interpreter) { ForthInterpreter.new($stdin) }
-  # ForthInterpreter performs operation by attempting to convert
+describe ForthRB::ForthInterpreter do
+  let(:interpreter) { ForthRB::ForthInterpreter.new($stdin) }
+  # ForthRB::ForthInterpreter performs operation by attempting to convert
   # words in the input to classes in the ForthOps module. This test
   # ensures that classes outside of the module can't be created.
   it 'doesn\'t recognize non-ForthOps classes' do

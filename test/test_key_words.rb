@@ -4,7 +4,7 @@ require 'rspec/autorun'
 require 'forthrb'
 
 describe ForthOps::Rot do
-  let(:interpreter) { ForthInterpreter.new($stdin) }
+  let(:interpreter) { ForthRB::ForthInterpreter.new($stdin) }
   let(:rot) { ForthOps::Rot.new(nil, nil) }
 
   it 'rotates the top 3 stack elements' do
@@ -26,7 +26,7 @@ describe ForthOps::Rot do
 end
 
 describe ForthOps::Swap do
-  let(:interpreter) { ForthInterpreter.new($stdin) }
+  let(:interpreter) { ForthRB::ForthInterpreter.new($stdin) }
   let(:swap) { ForthOps::Swap.new(nil, nil) }
 
   it 'swaps the top 2 stack elements' do
@@ -49,7 +49,7 @@ end
 
 describe ForthOps::Variable do
   let(:stdin) { StringIO.new("1 2 3\n") }
-  let(:interpreter) { ForthInterpreter.new(stdin) }
+  let(:interpreter) { ForthRB::ForthInterpreter.new(stdin) }
 
   it 'creates a variable' do
     interpreter.interpret_line(String.new('variable test test'))
@@ -72,7 +72,7 @@ describe ForthOps::Variable do
 end
 
 describe ForthOps::Comment do
-  let(:interpreter) { ForthInterpreter.new(StringIO.new) }
+  let(:interpreter) { ForthRB::ForthInterpreter.new(StringIO.new) }
 
   it 'ignores a comment' do
     test_comment = ForthOps::Comment.new(String.new('hello world )'), $stdin)
@@ -96,7 +96,7 @@ describe ForthOps::Comment do
 end
 
 describe ForthOps::If do
-  let(:interpreter) { ForthInterpreter.new($stdin) }
+  let(:interpreter) { ForthRB::ForthInterpreter.new($stdin) }
   let(:stdin) { StringIO.new("\n3 4 +\n. else 5\n6 + .\nthen 4 5 6") }
   let(:forth_if) { ForthOps::If.new(%w[." hello world "].join(' '), stdin) }
 
@@ -122,7 +122,7 @@ describe ForthOps::If do
 end
 
 describe ForthOps::If do
-  let(:interpreter) { ForthInterpreter.new($stdin) }
+  let(:interpreter) { ForthRB::ForthInterpreter.new($stdin) }
 
   it 'does nothing with false and no else' do
     expect do
@@ -139,7 +139,7 @@ describe ForthOps::If do
 end
 
 describe ForthOps::Do do
-  let(:interpreter) { ForthInterpreter.new($stdin) }
+  let(:interpreter) { ForthRB::ForthInterpreter.new($stdin) }
   let(:forth_do) { ForthOps::Do.new(%w[I .].join(' '), StringIO.new("\nrot dump\nloop 3 4")) }
 
   # Test that it will read from the source until it finds a loop correctly.
@@ -174,7 +174,7 @@ end
 
 describe ForthOps::Begin do
   let(:stdin) { StringIO.new("\n 4 5 + . .\"  HI \" UNTIL") }
-  let(:interpreter) { ForthInterpreter.new(stdin) }
+  let(:interpreter) { ForthRB::ForthInterpreter.new(stdin) }
   let(:forth_begin) { ForthOps::Begin.new(%w[1 .].join(' '), stdin) }
 
   it 'reads until until' do
