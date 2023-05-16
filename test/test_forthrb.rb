@@ -59,3 +59,18 @@ describe ForthInterpreter do
     expect(err.read).to eq "\n#{BAD_WORD} Unknown word 'NOTAWORD'\n"
   end
 end
+
+describe ForthInterpreter do
+  let(:interpreter) { ForthInterpreter.new($stdin) }
+  # ForthInterpreter performs operation by attempting to convert
+  # words in the input to classes in the ForthOps module. This test
+  # ensures that classes outside of the module can't be created.
+  it 'doesn\'t recognize non-ForthOps classes' do
+    expect do
+      interpreter.interpret_line('interpreter'.+@)
+    end.to output("\e[31m[BAD WORD]\e[0m Unknown word 'interpreter'\n").to_stderr
+    expect do
+      interpreter.interpret_line('heap'.+@)
+    end.to output("\e[31m[BAD WORD]\e[0m Unknown word 'heap'\n").to_stderr
+  end
+end

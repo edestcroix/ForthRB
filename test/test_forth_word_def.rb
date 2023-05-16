@@ -3,20 +3,20 @@
 require 'rspec/autorun'
 require 'forthrb'
 
-describe ForthWordDef do
+describe ForthOps::WordDef do
   let(:interpreter) { ForthInterpreter.new($stdin) }
   # deliberately put weird newlines in the input IO to make sure it reads correctly.
-  let(:word_def) { ForthWordDef.new(%w[test], StringIO.new("\n 1 2\n+ ;")) }
+  let(:word_def) { ForthOps::WordDef.new(%w[test], StringIO.new("\n 1 2\n+ ;")) }
 
   it 'defines a word' do
     word_def.eval(interpreter)
-    expect(interpreter.user_words).to include(test: %w[1 2] + [ForthAdd])
+    expect(interpreter.user_words).to include(test: %w[1 2] + [ForthOps::Add])
     interpreter.interpret_line(['test'])
     expect(interpreter.stack).to eq [3]
   end
 
   it 'supports recursion' do
-    ForthWordDef.new(%w[fac DUP 1 > IF DUP 1 - fac * ELSE DROP 1 THEN ;], $stdin).eval(interpreter)
+    ForthOps::WordDef.new(%w[fac DUP 1 > IF DUP 1 - fac * ELSE DROP 1 THEN ;], $stdin).eval(interpreter)
     interpreter.interpret_line(%w[5 fac])
     expect(interpreter.stack).to eq [120]
   end
@@ -24,11 +24,11 @@ describe ForthWordDef do
   it 'overwrites a word' do
     word_def.eval(interpreter)
     interpreter.interpret_line(%w[: test 3 4 + ;])
-    expect(interpreter.user_words).to include(test: %w[3 4] + [ForthAdd])
+    expect(interpreter.user_words).to include(test: %w[3 4] + [ForthOps::Add])
   end
 end
 
-describe ForthWordDef do
+describe ForthOps::WordDef do
   let(:interpreter) { ForthInterpreter.new($stdin) }
 
   it 'prevents defining a word with a number' do
@@ -53,7 +53,7 @@ describe ForthWordDef do
   end
 end
 
-describe ForthWordDef do
+describe ForthOps::WordDef do
   let(:interpreter) { ForthInterpreter.new($stdin) }
   it 'accepts complex words' do
     $stdin = StringIO.new(%(

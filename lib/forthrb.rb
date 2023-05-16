@@ -1,8 +1,13 @@
 # frozen_string_literal: true
 
 require 'forthrb/version'
-require 'forthrb/key_words'
+require 'forthrb/forth_ops'
 require 'forthrb/utils'
+
+# TODO: - Improve code/gem layout (deal with utils.rb being dumb)
+#       - Rewrite comments to align with Rubys RSpec/Yard docs format
+#       - Spec files
+#       - Test coverate
 
 # Main interpreter class. Holds the stack, and the dictionary of
 # user defined words. The dictionary is a hash of words to arrays
@@ -22,7 +27,7 @@ class ForthInterpreter
   def initialize(source)
     @source = Source.new(source)
     @stack = []
-    @heap = ForthVarHeap.new
+    @heap = ForthHeap.new
     @constants = {}
     @newline = false
     @space = false
@@ -39,7 +44,7 @@ class ForthInterpreter
     end
   end
 
-  # Interprets a line of Forth code. line is an array of either strings, ForthKeyWords,
+  # Interprets a line of Forth code. line is an array of either strings, ForthOps,
   # or both. bad_on_empty determines whether parsers should warn if they find an empty line,
   # or keep reading from stdin until they reach their terminating words. Returns true if
   # no unknown words were encountered, false otherwise.
@@ -91,7 +96,7 @@ class ForthInterpreter
   # already an object, otherwise creates and evaluates an object
   # based on the string name of the word.
   def eval_word(word, line)
-    if word.is_a? ForthKeyWord
+    if word.is_a? ForthOps::ForthOp
       word.eval(self)
       line
     elsif (obj = str_to_class(word))

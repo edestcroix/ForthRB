@@ -10,8 +10,8 @@ STACK_UNDERFLOW = "\e[31m[STACK UNDERFLOW]\e[0m"
 BAD_LOAD = "\e[31m[BAD LOAD]\e[0m"
 
 SYMBOL_MAP = { '+' => 'add', '-' => 'sub', '*' => 'mul', '/' => 'div', '.' => 'dot', '=' => 'equal',
-               '<' => 'lesser', '>' => 'greater', '."' => 'string', '(' => 'comment', '!' => 'set_var',
-               '@' => 'get_var', ':' => 'word_def', '::' => 'load_file' }.freeze
+               '<' => 'lesser', '>' => 'greater', '."' => 'f_string', '(' => 'comment', '!' => 'set_var',
+               '@' => 'get_var', ':' => 'word_def', '::' => 'load' }.freeze
 
 # Converts a string to a ForthKeyWord class.
 module ClassConvert
@@ -19,7 +19,7 @@ module ClassConvert
     return nil if word.nil? || SYMBOL_MAP.value?(word = word.downcase)
 
     word = SYMBOL_MAP.fetch(word, word.gsub('_', ''))
-    ForthKeyWord.const_get("Forth#{word.split('_').map!(&:capitalize).join}")
+    Module.const_get("ForthOps::#{word.split('_').map!(&:capitalize).join}")
   rescue NameError
     nil
   end
@@ -45,7 +45,7 @@ class String
 end
 
 # Implements a Heap for the ForthInterpreter to store variables in.
-class ForthVarHeap
+class ForthHeap
   def initialize
     @heap = []
     @name_map = {}

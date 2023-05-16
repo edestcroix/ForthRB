@@ -3,9 +3,9 @@
 require 'rspec/autorun'
 require 'forthrb'
 
-describe ForthRot do
+describe ForthOps::Rot do
   let(:interpreter) { ForthInterpreter.new($stdin) }
-  let(:rot) { ForthRot.new(nil, nil) }
+  let(:rot) { ForthOps::Rot.new(nil, nil) }
 
   it 'rotates the top 3 stack elements' do
     interpreter.interpret_line(%w[1 2 3])
@@ -25,9 +25,9 @@ describe ForthRot do
   end
 end
 
-describe ForthSwap do
+describe ForthOps::Swap do
   let(:interpreter) { ForthInterpreter.new($stdin) }
-  let(:swap) { ForthSwap.new(nil, nil) }
+  let(:swap) { ForthOps::Swap.new(nil, nil) }
 
   it 'swaps the top 2 stack elements' do
     interpreter.interpret_line(%w[1 2 3])
@@ -47,7 +47,7 @@ describe ForthSwap do
   end
 end
 
-describe ForthVariable do
+describe ForthOps::Variable do
   let(:stdin) { StringIO.new("1 2 3\n") }
   let(:interpreter) { ForthInterpreter.new(stdin) }
 
@@ -57,7 +57,7 @@ describe ForthVariable do
   end
 
   it 'errors without a name' do
-    variable = ForthVariable.new(%w[], $stdin)
+    variable = ForthOps::Variable.new(%w[], $stdin)
     expect do
       variable.eval(interpreter)
     end.to output("#{SYNTAX} Empty variable definition\n").to_stderr
@@ -71,18 +71,18 @@ describe ForthVariable do
   end
 end
 
-describe ForthComment do
+describe ForthOps::Comment do
   let(:interpreter) { ForthInterpreter.new(StringIO.new) }
 
   it 'ignores a comment' do
-    test_comment = ForthComment.new(String.new('hello world )'), $stdin)
+    test_comment = ForthOps::Comment.new(String.new('hello world )'), $stdin)
     expect do
       test_comment.eval(interpreter)
     end.to_not output.to_stdout
   end
 
   it 'errors without end parenthesis' do
-    test_comment = ForthComment.new(%w[hello world].join(' '), $stdin)
+    test_comment = ForthOps::Comment.new(%w[hello world].join(' '), $stdin)
     expect do
       test_comment.eval(interpreter)
     end.to output("#{SYNTAX} No closing ')' found\n").to_stderr
@@ -90,19 +90,20 @@ describe ForthComment do
 
   it 'reads more lines' do
     test_stdin = StringIO.new("hello world )\n")
-    ForthComment.new(%w[hello world].join(' '), test_stdin)
+    ForthOps::Comment.new(%w[hello world].join(' '), test_stdin)
     expect(test_stdin.eof?).to be true
   end
 end
 
-describe ForthIf do
+describe ForthOps::If do
   let(:interpreter) { ForthInterpreter.new($stdin) }
   let(:stdin) { StringIO.new("\n3 4 +\n. else 5\n6 + .\nthen 4 5 6") }
-  let(:forth_if) { ForthIf.new(%w[." hello world "].join(' '), stdin) }
+  let(:forth_if) { ForthOps::If.new(%w[." hello world "].join(' '), stdin) }
 
   it 'reads until else or then' do
-    expect(forth_if.instance_variable_get(:@true_block)).to include(ForthString, ForthAdd, ForthDot)
-    expect(forth_if.instance_variable_get(:@false_block)).to include('5', '6', ForthAdd, ForthDot)
+    expect(forth_if.instance_variable_get(:@true_block)).to include(ForthOps::FString, ForthOps::Add,
+                                                                    ForthOps::Dot)
+    expect(forth_if.instance_variable_get(:@false_block)).to include('5', '6', ForthOps::Add, ForthOps::Dot)
   end
 
   it 'evaluates true' do
@@ -120,7 +121,7 @@ describe ForthIf do
   end
 end
 
-describe ForthIf do
+describe ForthOps::If do
   let(:interpreter) { ForthInterpreter.new($stdin) }
 
   it 'does nothing with false and no else' do
@@ -132,19 +133,19 @@ describe ForthIf do
   it 'nests ifs' do
     expect do
       interpreter.interpret_line(%w[1])
-      ForthIf.new(%w[1 if 4 . else 3 . then then], $stdin).eval(interpreter)
+      ForthOps::If.new(%w[1 if 4 . else 3 . then then], $stdin).eval(interpreter)
     end.to output('4').to_stdout
   end
 end
 
-describe ForthDo do
+describe ForthOps::Do do
   let(:interpreter) { ForthInterpreter.new($stdin) }
-  let(:forth_do) { ForthDo.new(%w[I .].join(' '), StringIO.new("\nrot dump\nloop 3 4")) }
+  let(:forth_do) { ForthOps::Do.new(%w[I .].join(' '), StringIO.new("\nrot dump\nloop 3 4")) }
 
   # Test that it will read from the source until it finds a loop correctly.
   it 'reads until loop' do
     expect(forth_do.instance_variable_get(:@block)).to_not include(nil)
-    expect(forth_do.instance_variable_get(:@block)).to include('I', ForthDot, ForthRot, ForthDump)
+    expect(forth_do.instance_variable_get(:@block)).to include('I', ForthOps::Dot, ForthOps::Rot, ForthOps::Dump)
     expect do
       interpreter.interpret_line(%w[3 0 do 3 loop . . .].join(' '))
     end.to output('3 3 3').to_stdout
@@ -153,7 +154,7 @@ describe ForthDo do
   # Test that when stop_if_empty is true, it will error if there is no 'loop'.
   it 'errors without loop' do
     expect do
-      ForthDo.new(%w[." hi "].join(' '), $stdin).eval(interpreter)
+      ForthOps::Do.new(%w[." hi "].join(' '), $stdin).eval(interpreter)
     end.to output("#{SYNTAX} 'DO' without closing 'LOOP'\n").to_stderr
   end
 
@@ -165,16 +166,16 @@ describe ForthDo do
   end
 
   it 'nests loops' do
-    test_do = ForthDo.new(%w[3 0 DO 3 LOOP LOOP], $stdin)
+    test_do = ForthOps::Do.new(%w[3 0 DO 3 LOOP LOOP], $stdin)
     interpreter.interpret_line(['3', '0', test_do])
     expect(interpreter.stack).to eq [3, 3, 3, 3, 3, 3, 3, 3, 3]
   end
 end
 
-describe ForthBegin do
+describe ForthOps::Begin do
   let(:stdin) { StringIO.new("\n 4 5 + . .\"  HI \" UNTIL") }
   let(:interpreter) { ForthInterpreter.new(stdin) }
-  let(:forth_begin) { ForthBegin.new(%w[1 .].join(' '), stdin) }
+  let(:forth_begin) { ForthOps::Begin.new(%w[1 .].join(' '), stdin) }
 
   it 'reads until until' do
     expect(forth_begin.instance_variable_get(:@block)).to_not include(nil)
@@ -183,7 +184,7 @@ describe ForthBegin do
 
   it 'errors without until' do
     expect do
-      ForthBegin.new(%w[." hi "].join(' '), $stdin).eval(interpreter)
+      ForthOps::Begin.new(%w[." hi "].join(' '), $stdin).eval(interpreter)
     end.to output("#{SYNTAX} 'BEGIN' without closing 'UNTIL'\n").to_stderr
   end
 
