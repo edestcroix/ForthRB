@@ -1,6 +1,13 @@
 # frozen_string_literal: true
 
-require_relative 'utils'
+# Error codes
+SYNTAX = "\e[31m[SYNTAX]\e[0m"
+BAD_DEF = "\e[31m[BAD DEF]\e[0m"
+BAD_WORD = "\e[31m[BAD WORD]\e[0m"
+BAD_LOOP = "\e[31m[BAD LOOP]\e[0m"
+BAD_ADDRESS = "\e[31m[BAD ADDRESS]\e[0m"
+STACK_UNDERFLOW = "\e[31m[STACK UNDERFLOW]\e[0m"
+BAD_LOAD = "\e[31m[BAD LOAD]\e[0m"
 
 # Module that contains all supported Forth operations. For an operation to be recognized by the ForthInterpreter,
 # it must be part of this module. The keyword that activates the operation in the interprer is the name
@@ -8,7 +15,7 @@ require_relative 'utils'
 # with underscors separating the word. (E.g the class WordDef is in the SYMBOL_MAP as ':' => word_def,
 # so the ':' keyword will create a ForthOps::WordDef object)
 module ForthOps
-  # assigns input symbols to the according ForthOps
+  # assigns input symbols to the strings that will convert to the appropriate ForthOp
   SYMBOL_MAP = { '+' => 'add', '-' => 'sub', '*' => 'mul', '/' => 'div', '.' => 'dot', '=' => 'equal',
                  '<' => 'lesser', '>' => 'greater', '."' => 'f_string', '(' => 'comment', '!' => 'set_var',
                  '@' => 'get_var', ':' => 'word_def', '::' => 'load' }.freeze
@@ -22,6 +29,16 @@ module ForthOps
     Module.const_get("ForthOps::#{word.split('_').map!(&:capitalize).join}")
   rescue NameError
     nil
+  end
+
+  # Method used by ForthOps and the ForthInterpreter to get the first word out of a string.
+  def get_word(line)
+    return line.shift unless line.is_a?(String)
+
+    line.replace(line[1..]) if line.start_with?(' ')
+    word = line.slice!(/\S+/)
+    line.replace('') unless word
+    word
   end
 
   # Base class for all operations. Each operation on initialization takes in the line starting after
@@ -277,7 +294,7 @@ module ForthOps
 
   # Parent class for Variable and Constant definition objects.
   class VarDefine < ForthOp
-    include LineParse
+    include ForthOps
     def initialize(line, _)
       @name = get_word(line)&.downcase
       super
@@ -288,7 +305,7 @@ module ForthOps
     def valid_def(name, interpreter, id)
       if name.nil?
         return interpreter.err "#{SYNTAX} Empty #{id} definition"
-      elsif @name.integer?
+      elsif @name.to_i.to_s == @name
         return interpreter.err "#{BAD_DEF} #{id.capitalize} names cannot be numbers"
       elsif interpreter.system?(@name)
         return interpreter.err "#{BAD_DEF} '#{@name}' is already defined"
@@ -338,7 +355,6 @@ module ForthOps
   # Parent class for Forth Words that can span multiple lines.
   class MultiLine < ForthOp
     include ForthOps
-    include LineParse
     def initialize(line, source, end_word: '')
       super(line, nil)
       @source = source
@@ -439,13 +455,21 @@ module ForthOps
     end
 
     def eval(interpreter)
+      return unless valid(interpreter)
+
+      interpreter.user_words[@name.to_sym] = @block
+    end
+
+    private
+
+    def valid(interpreter)
       return interpreter.err "#{BAD_DEF} No name given for word definition" if @name.nil? || @name == ';'
       return interpreter.err "#{BAD_DEF} Word names cannot be builtins or variable names" \
       if interpreter.system?(@name) && !interpreter.user_words.key?(@name.to_sym)
-      return interpreter.err "#{BAD_DEF} Word names cannot be numbers" if @name.integer?
+      return interpreter.err "#{BAD_DEF} Word names cannot be numbers" if @name.to_i.to_s == @name
       return interpreter.err "#{SYNTAX} ':' without closing ';'" unless @good
 
-      interpreter.user_words[@name.to_sym] = @block
+      true
     end
   end
 
@@ -529,7 +553,6 @@ module ForthOps
 
   # loads and runs a file.
   class Load < ForthOp
-    include LineParse
     def initialize(line, _)
       @filename = get_word(line)
       super

@@ -2,7 +2,6 @@
 
 require 'forthrb/version'
 require 'forthrb/forth_ops'
-require 'forthrb/utils'
 
 # TODO: - Improve code/gem layout (deal with utils.rb being dumb)
 #       - Rewrite comments to align with Rubys RSpec/Yard docs format
@@ -18,7 +17,6 @@ module ForthRB
   # from the source definied on creation. interpret_line takes
   # an array of words and evaluates them on the stack.
   class ForthInterpreter
-    include LineParse
     include ForthOps
     attr_reader :stack, :heap, :constants, :user_words
 
@@ -112,7 +110,7 @@ module ForthRB
     # Handles 'value' type words. I.e numbers, variables, or constants that need to be pushed to the stack.
     def eval_value(word)
       # integer? method added by extending String in utils.rb
-      if word.integer?
+      if word.to_i.to_s == word
         @stack << word.to_i
       elsif @heap.defined? word
         @stack << @heap.get_address(word)
@@ -178,9 +176,7 @@ module ForthRB
   # Source is a wrapper around STDIN and File objects to allow the ForthInterpreter
   # to read from either and handle the prompt/output appropriately. On initialization,
   # the ForthInterpreter takes a source (anything that has a gets method really),
-  # and wraps it in a Source object. STDIN is wrapped with prompt_firstset to true,
-  # so the prompt is printed before the input, and files are wrapped with prompt_first
-  # set to false, which prints out the prompt and the line read from the file.
+  # and wraps it in a Source object.
   class Source
     def initialize(source)
       @source = source
