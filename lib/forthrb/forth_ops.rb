@@ -5,7 +5,7 @@ SYNTAX = "\e[31m[SYNTAX]\e[0m %<msg>s"
 BAD_DEF = "\e[31m[BAD DEF]\e[0m %<msg>s"
 BAD_WORD = "\e[31m[BAD WORD]\e[0m Unknown word '%<word>s'"
 BAD_LOOP = "\e[31m[BAD LOOP]\e[0m Invalid range %<start>d...%<end>d"
-BAD_ADDRESS = "\e[31m[BAD ADDRESS]\e[0m"
+BAD_ADDRESS = "\e[31m[BAD ADDRESS]\e[0m '%<address>s'"
 STACK_UNDERFLOW = "\e[31m[STACK UNDERFLOW]\e[0m Stack contains %<have>s/%<need>s required value(s)"
 BAD_LOAD = "\e[31m[BAD LOAD]\e[0m File '%<file>s' not found"
 
@@ -277,7 +277,10 @@ module ForthOps
     def eval(interpreter)
       return if underflow?(interpreter)
 
-      interpreter.stack << interpreter.heap.get(interpreter.stack.pop)
+      val = interpreter.heap.get(addr = interpreter.stack.pop)
+      return interpreter.err(BAD_ADDRESS, address: addr) unless val
+
+      interpreter.stack << val
     end
   end
 
@@ -288,7 +291,7 @@ module ForthOps
       return if underflow?(interpreter, 2)
 
       (val, addr) = interpreter.stack.pop(2)
-      interpreter.heap.set(addr, val)
+      interpreter.err(BAD_ADDRESS, address: addr) unless interpreter.heap.set(addr, val)
     end
   end
 

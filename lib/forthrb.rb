@@ -161,14 +161,13 @@ module ForthRB
     end
 
     def set(addr, value)
-      return warn "#{BAD_ADDRESS} #{addr}" if addr < 1000 || addr > 1000 + @free
+      return if addr < 1000 || addr > 1000 + @free
 
       @heap[addr - 1000] = value
     end
 
     def get(address)
-      return warn "#{BAD_ADDRESS} #{address}" if address.nil?
-      return warn "#{BAD_ADDRESS} #{address}" if address < 1000 || address > 1000 + @free
+      return if address.nil? || address < 1000 || address > 1000 + @free
 
       @heap[address - 1000]
     end
