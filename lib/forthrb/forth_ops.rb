@@ -295,12 +295,20 @@ module ForthOps
     end
   end
 
-  # Parent class for Variable and Constant definition objects.
-  class VarDefine < ForthOp
+  # Defines a variable in the heap. On eval, allocate
+  # free space in the heap and store the address under '@name',
+  # which was read in as the first value on the line.
+  class Variable < ForthOp
     include ForthOps
     def initialize(line, _)
       @name = get_word(line)&.downcase
       super
+    end
+
+    def eval(interpreter)
+      return unless valid_def(@name, interpreter, 'variable')
+
+      interpreter.heap.create(@name)
     end
 
     private
@@ -318,20 +326,9 @@ module ForthOps
     end
   end
 
-  # Defines a variable in the heap. On eval, allocate
-  # free space in the heap and store the address under '@name',
-  # which was read in as the first value on the line.
-  class Variable < VarDefine
-    def eval(interpreter)
-      return unless valid_def(@name, interpreter, 'variable')
-
-      interpreter.heap.create(@name)
-    end
-  end
-
   # Defines a global constant. Sets @name to be the first value
   # popped off the stack in the interpeter's constants list.
-  class Constant < VarDefine
+  class Constant < Variable
     def eval(interpreter)
       return unless valid_def(@name, interpreter, 'constant')
       return if underflow?(interpreter)
@@ -340,9 +337,9 @@ module ForthOps
     end
   end
 
-  # On eval, takes the top value of the stack as an address and
+  # On eval, takes the top value of the stack and
   # allocates that much free space in the heap.
-  class Allot < VarDefine
+  class Allot < ForthOp
     def eval(interpreter)
       return if underflow?(interpreter)
 
