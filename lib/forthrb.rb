@@ -68,7 +68,7 @@ module ForthRB
     def load(file)
       old_source = @source
       file = File.expand_path file
-      return warn "#{BAD_LOAD} File '#{file}' not found" unless File.exist?(file)
+      return err(BAD_LOAD, file: file) unless File.exist?(file)
 
       @source = Source.new(File.open(file))
       interpret
@@ -85,10 +85,10 @@ module ForthRB
 
     # Just calling 'warn' will put error messages on the same line as the output
     # from the '.' and EMIT keywords, and strings. This way, they get put on a new line.
-    def err(msg)
+    def err(msg, **args)
       msg = "\n#{msg}" if @newline
       @newline = false
-      warn msg
+      warn format(msg, args)
     end
 
     private
@@ -124,16 +124,17 @@ module ForthRB
 
     # Sends the appropriate warning message based on the word.
     def err_invalid(word)
-      return err "#{SYNTAX} ';' without opening ':'" if word == ';'
-      return err "#{SYNTAX} 'LOOP' without opening 'DO'" if word == 'loop'
-      return err "#{SYNTAX} 'UNTIL' without opening 'BEGIN'" if word == 'until'
-      return err "#{SYNTAX} '#{word.upcase}' without opening 'IF'" if %w[else then].include?(word)
+      return err(SYNTAX, msg: "';' without opening ':'") if word == ';'
+      return err(SYNTAX, msg: "'LOOP' without opening 'DO'") if word == 'loop'
+      return err(SYNTAX, msg: "'UNTIL' without opening 'BEGIN'") if word == 'until'
+      return err(SYNTAX, msg: "'#{word.upcase}' without opening 'IF'") if %w[else then].include?(word)
 
-      err "#{BAD_WORD} Unknown word '#{word}'"
+      err(BAD_WORD, word: word)
     end
   end
 
   # Implements a Heap for the ForthInterpreter to store variables in.
+  # TODO: Heap should send errors through the interpreter.
   class ForthHeap
     def initialize
       @heap = []

@@ -34,22 +34,22 @@ describe ForthOps::WordDef do
   it 'prevents defining a word with a number' do
     expect do
       interpreter.interpret_line(%w[: 1 2 + ;])
-    end.to output("#{BAD_DEF} Word names cannot be numbers\n").to_stderr
+    end.to output(format(BAD_DEF, msg: "Word names cannot be numbers\n")).to_stderr
   end
 
   it 'prevents defining a word with a builtin name' do
     expect do
       interpreter.interpret_line(%w[: + 2 + ;])
-    end.to output("#{BAD_DEF} Word names cannot be builtins or variable names\n").to_stderr
+    end.to output(format(BAD_DEF, msg: "Word names cannot be builtins or variable names\n")).to_stderr
   end
 
   it 'errors without a name' do
     expect do
       interpreter.interpret_line(%w[: ;])
-    end.to output("#{BAD_DEF} No name given for word definition\n").to_stderr
+    end.to output(format(BAD_DEF, msg: "No name given for word definition\n")).to_stderr
     expect do
       interpreter.interpret_line(%w[:])
-    end.to output("#{BAD_DEF} No name given for word definition\n").to_stderr
+    end.to output(format(BAD_DEF, msg: "No name given for word definition\n")).to_stderr
   end
 end
 

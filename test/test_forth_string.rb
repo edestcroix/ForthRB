@@ -17,7 +17,7 @@ describe ForthOps::FString do
     test_string = ForthOps::FString.new(String.new('hello world'), StringIO.new(''))
     expect do
       test_string.eval(interpreter)
-    end.to output("#{SYNTAX} No closing '\"' found\n").to_stderr
+    end.to output(format(SYNTAX, msg: "No closing '\"' found\n")).to_stderr
   end
 
   it 'reads more lines' do

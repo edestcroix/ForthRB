@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
 # Error codes
-SYNTAX = "\e[31m[SYNTAX]\e[0m"
-BAD_DEF = "\e[31m[BAD DEF]\e[0m"
-BAD_WORD = "\e[31m[BAD WORD]\e[0m"
-BAD_LOOP = "\e[31m[BAD LOOP]\e[0m"
+SYNTAX = "\e[31m[SYNTAX]\e[0m %<msg>s"
+BAD_DEF = "\e[31m[BAD DEF]\e[0m %<msg>s"
+BAD_WORD = "\e[31m[BAD WORD]\e[0m Unknown word '%<word>s'"
+BAD_LOOP = "\e[31m[BAD LOOP]\e[0m Invalid range %<start>d...%<end>d"
 BAD_ADDRESS = "\e[31m[BAD ADDRESS]\e[0m"
-STACK_UNDERFLOW = "\e[31m[STACK UNDERFLOW]\e[0m"
-BAD_LOAD = "\e[31m[BAD LOAD]\e[0m"
+STACK_UNDERFLOW = "\e[31m[STACK UNDERFLOW]\e[0m Stack contains %<have>s/%<need>s required value(s)"
+BAD_LOAD = "\e[31m[BAD LOAD]\e[0m File '%<file>s' not found"
 
 # Module that contains all supported Forth operations. For an operation to be recognized by the ForthInterpreter,
 # it must be part of this module. The keyword that activates the operation in the interprer is the name
@@ -62,7 +62,7 @@ module ForthOps
     # checks if the stack has at least num non-nil values
     def underflow?(interpreter, num = 1)
       if (values = interpreter.stack.last(num).compact).length < num
-        interpreter.err "#{STACK_UNDERFLOW} Stack contains #{values.length}/#{num} required value(s): #{values}."
+        interpreter.err(STACK_UNDERFLOW, have: values.length, need: num)
         return true
       end
       false
@@ -304,11 +304,11 @@ module ForthOps
 
     def valid_def(name, interpreter, id)
       if name.nil?
-        return interpreter.err "#{SYNTAX} Empty #{id} definition"
+        return interpreter.err(SYNTAX, msg: "Empty #{id} definition")
       elsif @name.to_i.to_s == @name
-        return interpreter.err "#{BAD_DEF} #{id.capitalize} names cannot be numbers"
+        return interpreter.err(BAD_DEF, msg: "#{id.capitalize} names cannot be numbers")
       elsif interpreter.system?(@name)
-        return interpreter.err "#{BAD_DEF} '#{@name}' is already defined"
+        return interpreter.err(BAD_DEF, msg: "'#{@name}' is already defined")
       end
 
       true
@@ -409,7 +409,7 @@ module ForthOps
     end
 
     def eval(interpreter)
-      return interpreter.err "#{SYNTAX} No closing '\"' found" unless @good
+      return interpreter.err(SYNTAX, msg: "No closing '\"' found") unless @good
 
       print @string
       interpreter.newline = true
@@ -438,7 +438,7 @@ module ForthOps
     end
 
     def eval(interpreter)
-      return interpreter.err "#{SYNTAX} No closing ')' found" unless @good
+      return interpreter.err(SYNTAX, msg: "No closing ')' found") unless @good
     end
   end
 
@@ -463,11 +463,11 @@ module ForthOps
     private
 
     def valid(interpreter)
-      return interpreter.err "#{BAD_DEF} No name given for word definition" if @name.nil? || @name == ';'
-      return interpreter.err "#{BAD_DEF} Word names cannot be builtins or variable names" \
+      return interpreter.err(BAD_DEF, msg: 'No name given for word definition') if @name.nil? || @name == ';'
+      return interpreter.err(BAD_DEF, msg: 'Word names cannot be builtins or variable names') \
       if interpreter.system?(@name) && !interpreter.user_words.key?(@name.to_sym)
-      return interpreter.err "#{BAD_DEF} Word names cannot be numbers" if @name.to_i.to_s == @name
-      return interpreter.err "#{SYNTAX} ':' without closing ';'" unless @good
+      return interpreter.err(BAD_DEF, msg: 'Word names cannot be numbers') if @name.to_i.to_s == @name
+      return interpreter.err(SYNTAX, msg: "':' without closing ';'") unless @good
 
       true
     end
@@ -486,7 +486,7 @@ module ForthOps
 
     def eval(interpreter)
       # If the IF is not good (there wasn't an ending THEN) warn and do nothing.
-      return interpreter.err "#{SYNTAX} 'IF' without closing 'THEN'" unless @good
+      return interpreter.err(SYNTAX, msg: "'IF' without closing 'THEN'") unless @good
       return if underflow?(interpreter)
 
       if interpreter.stack.pop.zero?
@@ -508,11 +508,11 @@ module ForthOps
     end
 
     def eval(interpreter)
-      return interpreter.err "#{SYNTAX} 'DO' without closing 'LOOP'" unless @good
+      return interpreter.err(SYNTAX, msg: "'DO' without closing 'LOOP'") unless @good
       return if underflow?(interpreter, 2)
 
       (limit, start) = interpreter.stack.pop(2)
-      return warn "#{BAD_LOOP} Invalid loop range" if start.negative? || limit.negative? || start > limit
+      return interpreter.err(BAD_LOOP, start: start, end: limit) if start > limit
 
       do_loop(interpreter, start, limit)
     end
@@ -539,7 +539,7 @@ module ForthOps
     end
 
     def eval(interpreter)
-      return interpreter.err "#{SYNTAX} 'BEGIN' without closing 'UNTIL'" unless @good
+      return interpreter.err(SYNTAX, msg: "'BEGIN' without closing 'UNTIL'") unless @good
 
       loop do
         break unless interpreter.interpret_line(@block.dup)
@@ -553,13 +553,14 @@ module ForthOps
 
   # loads and runs a file.
   class Load < ForthOp
+    include ForthOps
     def initialize(line, _)
       @filename = get_word(line)
       super
     end
 
     def eval(interpreter)
-      return interpreter.err "#{BAD_LOAD} No filename given" unless @filename
+      return interpreter.err(BAD_LOAD, file: 'nil') unless @filename
 
       interpreter.load(@filename)
     end

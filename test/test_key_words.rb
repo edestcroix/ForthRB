@@ -16,12 +16,12 @@ describe ForthOps::Rot do
   it 'raises a stack underflow error' do
     expect do
       rot.eval(interpreter)
-    end.to output("#{STACK_UNDERFLOW} Stack contains 0/3 required value(s): [].\n").to_stderr
+    end.to output(format("#{STACK_UNDERFLOW}\n", have: 0, need: 3)).to_stderr
 
     interpreter.interpret_line(%w[1])
     expect do
       rot.eval(interpreter)
-    end.to output("#{STACK_UNDERFLOW} Stack contains 1/3 required value(s): [1].\n").to_stderr
+    end.to output(format("#{STACK_UNDERFLOW}\n", have: 1, need: 3)).to_stderr
   end
 end
 
@@ -38,12 +38,12 @@ describe ForthOps::Swap do
   it 'raises a stack underflow error' do
     expect do
       swap.eval(interpreter)
-    end.to output("#{STACK_UNDERFLOW} Stack contains 0/2 required value(s): [].\n").to_stderr
+    end.to output(format("#{STACK_UNDERFLOW}\n", have: 0, need: 2)).to_stderr
 
     expect do
       interpreter.interpret_line(%w[1])
       swap.eval(interpreter)
-    end.to output("#{STACK_UNDERFLOW} Stack contains 1/2 required value(s): [1].\n").to_stderr
+    end.to output(format("#{STACK_UNDERFLOW}\n", have: 1, need: 2)).to_stderr
   end
 end
 
@@ -60,14 +60,14 @@ describe ForthOps::Variable do
     variable = ForthOps::Variable.new(%w[], $stdin)
     expect do
       variable.eval(interpreter)
-    end.to output("#{SYNTAX} Empty variable definition\n").to_stderr
+    end.to output(format(SYNTAX, msg: "Empty variable definition\n")).to_stderr
   end
 
   it 'doesn\'t overwrite an existing variable' do
     interpreter.interpret_line(String.new('variable test'))
     expect do
       interpreter.interpret_line(%w[variable test])
-    end.to output("#{BAD_DEF} 'test' is already defined\n").to_stderr
+    end.to output(format(BAD_DEF, msg: "'test' is already defined\n")).to_stderr
   end
 end
 
@@ -85,7 +85,7 @@ describe ForthOps::Comment do
     test_comment = ForthOps::Comment.new(%w[hello world].join(' '), $stdin)
     expect do
       test_comment.eval(interpreter)
-    end.to output("#{SYNTAX} No closing ')' found\n").to_stderr
+    end.to output(format(SYNTAX, msg: "No closing ')' found\n")).to_stderr
   end
 
   it 'reads more lines' do
@@ -155,7 +155,7 @@ describe ForthOps::Do do
   it 'errors without loop' do
     expect do
       ForthOps::Do.new(%w[." hi "].join(' '), $stdin).eval(interpreter)
-    end.to output("#{SYNTAX} 'DO' without closing 'LOOP'\n").to_stderr
+    end.to output(format(SYNTAX, msg: "'DO' without closing 'LOOP'\n")).to_stderr
   end
 
   it 'loops' do
@@ -172,6 +172,18 @@ describe ForthOps::Do do
   end
 end
 
+describe ForthOps::Do do
+  let(:interpreter) { ForthRB::ForthInterpreter.new($stdin) }
+  let(:forth_do) { ForthOps::Do.new(%w[I .].join(' '), StringIO.new("\nrot dump\nloop 3 4")) }
+
+  it 'errors for invalid loop ranges' do
+    expect do
+      interpreter.interpret_line(%w[0 3].join(' '))
+      forth_do.eval(interpreter)
+    end.to output(format("#{BAD_LOOP}\n", start: 3, end: 0)).to_stderr
+  end
+end
+
 describe ForthOps::Begin do
   let(:stdin) { StringIO.new("\n 4 5 + . .\"  HI \" UNTIL") }
   let(:interpreter) { ForthRB::ForthInterpreter.new(stdin) }
@@ -185,7 +197,7 @@ describe ForthOps::Begin do
   it 'errors without until' do
     expect do
       ForthOps::Begin.new(%w[." hi "].join(' '), $stdin).eval(interpreter)
-    end.to output("#{SYNTAX} 'BEGIN' without closing 'UNTIL'\n").to_stderr
+    end.to output(format(SYNTAX, msg: "'BEGIN' without closing 'UNTIL'\n")).to_stderr
   end
 
   it 'loops' do
