@@ -60,7 +60,7 @@ describe ForthOps::Variable do
     variable = ForthOps::Variable.new(%w[], $stdin)
     expect do
       variable.eval(interpreter)
-    end.to output(format(SYNTAX, msg: "Empty variable definition\n")).to_stderr
+    end.to output(format(BAD_DEF, msg: "Empty variable definition\n")).to_stderr
   end
 
   it 'doesn\'t overwrite an existing variable' do
@@ -85,7 +85,7 @@ describe ForthOps::Comment do
     test_comment = ForthOps::Comment.new(%w[hello world].join(' '), $stdin)
     expect do
       test_comment.eval(interpreter)
-    end.to output(format(SYNTAX, msg: "No closing ')' found\n")).to_stderr
+    end.to output(format("#{SYNTAX}\n", have: '(', need: ')')).to_stderr
   end
 
   it 'reads more lines' do
@@ -155,7 +155,7 @@ describe ForthOps::Do do
   it 'errors without loop' do
     expect do
       ForthOps::Do.new(%w[." hi "].join(' '), $stdin).eval(interpreter)
-    end.to output(format(SYNTAX, msg: "'DO' without closing 'LOOP'\n")).to_stderr
+    end.to output(format("#{SYNTAX}\n", have: 'DO', need: 'LOOP')).to_stderr
   end
 
   it 'loops' do
@@ -197,7 +197,7 @@ describe ForthOps::Begin do
   it 'errors without until' do
     expect do
       ForthOps::Begin.new(%w[." hi "].join(' '), $stdin).eval(interpreter)
-    end.to output(format(SYNTAX, msg: "'BEGIN' without closing 'UNTIL'\n")).to_stderr
+    end.to output(format("#{SYNTAX}\n", have: 'BEGIN', need: 'UNTIL')).to_stderr
   end
 
   it 'loops' do

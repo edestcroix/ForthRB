@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Error codes
-SYNTAX = "\e[31m[SYNTAX]\e[0m %<msg>s"
+SYNTAX = "\e[31m[SYNTAX]\e[0m '%<have>s' without matching '%<need>s'"
 BAD_DEF = "\e[31m[BAD DEF]\e[0m %<msg>s"
 BAD_WORD = "\e[31m[BAD WORD]\e[0m Unknown word '%<word>s'"
 BAD_LOOP = "\e[31m[BAD LOOP]\e[0m Invalid range %<start>d...%<end>d"
@@ -307,7 +307,7 @@ module ForthOps
 
     def valid_def(name, interpreter, id)
       if name.nil?
-        return interpreter.err(SYNTAX, msg: "Empty #{id} definition")
+        return interpreter.err(BAD_DEF, msg: "Empty #{id} definition")
       elsif @name.to_i.to_s == @name
         return interpreter.err(BAD_DEF, msg: "#{id.capitalize} names cannot be numbers")
       elsif interpreter.system?(@name)
@@ -412,7 +412,7 @@ module ForthOps
     end
 
     def eval(interpreter)
-      return interpreter.err(SYNTAX, msg: "No closing '\"' found") unless @good
+      return interpreter.err(SYNTAX, have: '."', need: '"') unless @good
 
       print @string
       interpreter.newline = true
@@ -441,7 +441,7 @@ module ForthOps
     end
 
     def eval(interpreter)
-      return interpreter.err(SYNTAX, msg: "No closing ')' found") unless @good
+      return interpreter.err(SYNTAX, have: '(', need: ')') unless @good
     end
   end
 
@@ -470,7 +470,7 @@ module ForthOps
       return interpreter.err(BAD_DEF, msg: 'Word names cannot be builtins or variable names') \
       if interpreter.system?(@name) && !interpreter.user_words.key?(@name.to_sym)
       return interpreter.err(BAD_DEF, msg: 'Word names cannot be numbers') if @name.to_i.to_s == @name
-      return interpreter.err(SYNTAX, msg: "':' without closing ';'") unless @good
+      return interpreter.err(SYNTAX, have: ':', need: ';') unless @good
 
       true
     end
@@ -489,7 +489,7 @@ module ForthOps
 
     def eval(interpreter)
       # If the IF is not good (there wasn't an ending THEN) warn and do nothing.
-      return interpreter.err(SYNTAX, msg: "'IF' without closing 'THEN'") unless @good
+      return interpreter.err(SYNTAX, have: 'IF', need: 'THEN') unless @good
       return if underflow?(interpreter)
 
       if interpreter.stack.pop.zero?
@@ -511,7 +511,7 @@ module ForthOps
     end
 
     def eval(interpreter)
-      return interpreter.err(SYNTAX, msg: "'DO' without closing 'LOOP'") unless @good
+      return interpreter.err(SYNTAX, have: 'DO', need: 'LOOP') unless @good
       return if underflow?(interpreter, 2)
 
       (limit, start) = interpreter.stack.pop(2)
@@ -542,7 +542,7 @@ module ForthOps
     end
 
     def eval(interpreter)
-      return interpreter.err(SYNTAX, msg: "'BEGIN' without closing 'UNTIL'") unless @good
+      return interpreter.err(SYNTAX, have: 'BEGIN', need: 'UNTIL') unless @good
 
       loop do
         break unless interpreter.interpret_line(@block.dup)

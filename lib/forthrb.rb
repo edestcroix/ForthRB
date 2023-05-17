@@ -3,11 +3,9 @@
 require 'forthrb/version'
 require 'forthrb/forth_ops'
 
-# TODO: - Improve code/gem layout (deal with utils.rb being dumb)
-#       - Rewrite comments to align with Rubys RSpec/Yard docs format
+# TODO: - Rewrite comments to align with Rubys RSpec/Yard docs format
 #       - Spec files
 #       - Test coverate
-#
 
 module ForthRB
   # Main interpreter class. Holds the stack, and the dictionary of
@@ -124,17 +122,17 @@ module ForthRB
 
     # Sends the appropriate warning message based on the word.
     def err_invalid(word)
-      return err(SYNTAX, msg: "';' without opening ':'") if word == ';'
-      return err(SYNTAX, msg: "'LOOP' without opening 'DO'") if word == 'loop'
-      return err(SYNTAX, msg: "'UNTIL' without opening 'BEGIN'") if word == 'until'
-      return err(SYNTAX, msg: "'#{word.upcase}' without opening 'IF'") if %w[else then].include?(word)
+      return err(SYNTAX, have: word, need: ':') if word == ';'
+      return err(SYNTAX, have: word, need: '."') if word == '"'
+      return err(SYNTAX, have: word, need: 'DO') if word.casecmp?('loop')
+      return err(SYNTAX, have: word, need: 'BEGIN') if word.casecmp?('until')
+      return err(SYNTAX, have: word, need: 'IF') if %w[else then].any? { |w| word.casecmp?(w) }
 
       err(BAD_WORD, word: word)
     end
   end
 
   # Implements a Heap for the ForthInterpreter to store variables in.
-  # TODO: Heap should send errors through the interpreter.
   class ForthHeap
     def initialize
       @heap = []
