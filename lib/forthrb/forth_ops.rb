@@ -5,7 +5,8 @@ SYNTAX = "\e[31m[SYNTAX]\e[0m '%<have>s' without matching '%<need>s'"
 BAD_DEF = "\e[31m[BAD DEF]\e[0m %<msg>s"
 BAD_WORD = "\e[31m[BAD WORD]\e[0m Unknown word '%<word>s'"
 BAD_LOOP = "\e[31m[BAD LOOP]\e[0m Invalid range %<start>d...%<end>d"
-BAD_ADDRESS = "\e[31m[BAD ADDRESS]\e[0m '%<address>s'"
+BAD_ADDRESS = "\e[31m[BAD ADDRESS]\e[0m Address '%<address>s' out of range or unallocated"
+VALUE_ERROR = "\e[31m[VALUE ERROR]\e[0m Variable at address '%<address>s' has not been assigned a value"
 STACK_UNDERFLOW = "\e[31m[STACK UNDERFLOW]\e[0m Stack contains %<have>s/%<need>s required value(s)"
 BAD_LOAD = "\e[31m[BAD LOAD]\e[0m File '%<file>s' not found"
 
@@ -278,6 +279,7 @@ module ForthOps
       return if underflow?(interpreter)
 
       val = interpreter.heap.get(addr = interpreter.stack.pop)
+      return interpreter.err(VALUE_ERROR, address: addr) if val.nil?
       return interpreter.err(BAD_ADDRESS, address: addr) unless val
 
       interpreter.stack << val

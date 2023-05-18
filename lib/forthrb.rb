@@ -137,13 +137,12 @@ module ForthRB
     def initialize
       @heap = []
       @name_map = {}
-      @free = 0
+      @free = -1
     end
 
     def create(name)
       @free += 1
-      @name_map[name.to_sym] = @free + 1000 - 1
-      @free + 1000 - 1
+      @name_map[name.to_sym] = @free + 1000
     end
 
     def allot(size)
@@ -159,13 +158,13 @@ module ForthRB
     end
 
     def set(addr, value)
-      return if addr < 1000 || addr > 1000 + @free
+      return false if addr < 1000 || addr > 1000 + @free
 
       @heap[addr - 1000] = value
     end
 
     def get(address)
-      return if address.nil? || address < 1000 || address > 1000 + @free
+      return false if address.nil? || address < 1000 || address > 1000 + @free
 
       @heap[address - 1000]
     end
