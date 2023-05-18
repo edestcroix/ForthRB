@@ -74,3 +74,52 @@ describe ForthRB::ForthInterpreter do
     end.to output(format("#{BAD_WORD}\n", word: 'heap')).to_stderr
   end
 end
+
+describe ForthRB::ForthHeap do
+  let(:heap) { ForthRB::ForthHeap.new }
+
+  it 'allocates a variable' do
+    heap.create('test')
+
+    expect(heap.instance_variable_get(:@name_map)).to include(test: 1000)
+    expect(heap.instance_variable_get(:@free)).to eq(0)
+  end
+
+  it 'allocates space' do
+    heap.allot(4) && heap.create('test')
+    expect(heap.instance_variable_get(:@free)).to eq(4)
+    expect(heap.instance_variable_get(:@name_map)).to include(test: 1004)
+  end
+
+  it 'returns variable address' do
+    heap.create('test')
+    expect(heap.get_address('test')).to eq(1000)
+  end
+
+  it 'sets a variable' do
+    heap.create('test')
+    heap.set(1000, 45)
+    expect(heap.instance_variable_get(:@heap)).to eq([45])
+  end
+
+  it 'gets a variable' do
+    heap.create('test')
+    heap.set(1000, 45)
+    expect(heap.get(1000)).to eq(45)
+  end
+end
+
+describe ForthRB::ForthHeap do
+  let(:heap) { ForthRB::ForthHeap.new }
+
+  it 'returns false for invalid addresses' do
+    expect(heap.get(103)).to eq(false)
+    expect(heap.get(1000)).to eq(false)
+    expect(heap.get(1001)).to eq(false)
+  end
+
+  it 'returns nil for unassigned addresses' do
+    heap.create('test')
+    expect(heap.get(1000)).to eq(nil)
+  end
+end
