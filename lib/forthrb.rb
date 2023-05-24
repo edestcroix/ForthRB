@@ -4,8 +4,7 @@ require 'forthrb/version'
 require 'forthrb/forth_ops'
 
 # TODO: - Rewrite comments to align with Rubys RSpec/Yard docs format
-#       - Spec files
-#       - Test coverate
+#       - Test coverage
 
 module ForthRB
   # Main interpreter class. Holds the stack, and the dictionary of
@@ -27,25 +26,24 @@ module ForthRB
       @stack = []
       @heap = ForthHeap.new
       @constants = {}
+      @user_words = {}
       @newline = false
       @space = false
-      @user_words = {}
     end
 
     # runs the interpreter on the source provided on creation.
     def interpret
       while (line = @source.gets(prompt: true))
-        @space = false
-        @newline = false
         %W[quit\n exit\n].include?(line) ? exit(0) : interpret_line(line)
         puts '' if @newline
+        @space = false
+        @newline = false
       end
     end
 
-    # Interprets a line of Forth code. line is an array of either strings, ForthOps,
-    # or both. bad_on_empty determines whether parsers should warn if they find an empty line,
-    # or keep reading from stdin until they reach their terminating words. Returns true if
-    # no unknown words were encountered, false otherwise.
+    # Interprets a line of Forth code. Accepts either a String of space-separated words,
+    # or an Array of Strings or ForthOps. For general input, (from stdin or otherwise) line should
+    # be the String read so that strings in the input can be parsed with the correct whitespace.
     def interpret_line(line)
       while (word = get_word(line))
         # if eval_word sets l to a non-nil value, update line to l as
@@ -55,7 +53,7 @@ module ForthRB
         elsif @user_words.key?(w = word.downcase.to_sym)
           interpret_line(@user_words[w].dup)
         else
-          return unless eval_value(word)
+          return false unless eval_value(word)
         end
       end
       true
@@ -63,7 +61,7 @@ module ForthRB
 
     # reads from a file by temporarily changing the source to a new Source object
     # and calling interpret. If the file is not found, warn the user.
-    def load(file)
+    def load_file(file)
       old_source = @source
       file = File.expand_path file
       return err(BAD_LOAD, file: file) unless File.exist?(file)

@@ -563,7 +563,7 @@ module ForthOps
     def eval(interpreter)
       return interpreter.err(BAD_LOAD, file: 'nil') unless @filename
 
-      interpreter.load(@filename)
+      interpreter.load_file(@filename)
     end
   end
 end
