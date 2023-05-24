@@ -400,11 +400,10 @@ module ForthOps
     end
   end
 
-  # Forth String. On eval, prints the line up to the first "
-  # character. Sets @remainder to the line after the ". If
-  # there is no ", it raises a warning on eval when stop_if_empty
-  # is true, otherwise it keeps reading until it finds one. FString instead of String,
-  # to avoid interference with the builtin Ruby String class.
+  # Forth String. On eval, prints the line up to the first " character. Sets
+  # @remainder to the line after the ". If there is no " it keeps reading
+  # until it finds one. FString instead of String, to avoid interference with
+  # the builtin Ruby String class.
   class FString < MultiLine
     def initialize(line, source, end_word: '"')
       super(line, source, end_word: end_word)
