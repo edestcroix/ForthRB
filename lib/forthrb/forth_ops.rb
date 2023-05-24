@@ -308,18 +308,18 @@ module ForthOps
     end
 
     def eval(interpreter)
-      return unless valid_def(@name, interpreter, 'variable')
+      return unless valid_def(interpreter)
 
       interpreter.heap.create(@name)
     end
 
     private
 
-    def valid_def(name, interpreter, id)
-      if name.nil?
-        return interpreter.err(BAD_DEF, msg: "Empty #{id} definition")
+    def valid_def(interpreter)
+      if @name.nil?
+        return interpreter.err(BAD_DEF, msg: "Empty #{self.class.name.gsub('ForthOps::', '').downcase} definition")
       elsif @name.to_i.to_s == @name
-        return interpreter.err(BAD_DEF, msg: "#{id.capitalize} names cannot be numbers")
+        return interpreter.err(BAD_DEF, msg: "#{self.class.name.gsub('ForthOps::', '')} names cannot be numbers")
       elsif interpreter.system?(@name)
         return interpreter.err(BAD_DEF, msg: "'#{@name}' is already defined")
       end
@@ -332,7 +332,7 @@ module ForthOps
   # popped off the stack in the interpeter's constants list.
   class Constant < Variable
     def eval(interpreter)
-      return unless valid_def(@name, interpreter, 'constant')
+      return unless valid_def(interpreter)
       return if underflow?(interpreter)
 
       interpreter.constants[@name.to_sym] = interpreter.stack.pop
