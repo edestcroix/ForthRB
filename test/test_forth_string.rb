@@ -4,17 +4,17 @@ require 'rspec/autorun'
 require 'forthrb'
 
 describe ForthOps::FString do
-  let(:interpreter) { ForthRB::ForthInterpreter.new($stdin) }
+  let(:interpreter) { ForthRB::ForthInterpreter.new(StringIO.new) }
 
   it 'prints a string' do
-    test_string = ForthOps::FString.new(String.new('hello world "'), $stdin)
+    test_string = ForthOps::FString.new(String.new('hello world "'), StringIO.new)
     expect do
       test_string.eval(interpreter)
     end.to output('hello world ').to_stdout
   end
 
   it 'errors without end quote' do
-    test_string = ForthOps::FString.new(String.new('hello world'), StringIO.new(''))
+    test_string = ForthOps::FString.new(String.new('hello world'), StringIO.new)
     expect do
       test_string.eval(interpreter)
     end.to output(format("#{SYNTAX}\n", have: '."', need: '"')).to_stderr
@@ -30,26 +30,26 @@ describe ForthOps::FString do
 end
 
 describe ForthOps::FString do
-  let(:interpreter) { ForthRB::ForthInterpreter.new($stdin) }
-  let(:blank_stdin) { StringIO.new('') }
+  let(:interpreter) { ForthRB::ForthInterpreter.new(StringIO.new) }
+  let(:blank_stdin) { StringIO.new }
 
   it 'doesn\'t need space before end quote' do
     expect do
-      ForthOps::FString.new('hello world"', StringIO.new('')).eval(interpreter)
+      ForthOps::FString.new('hello world"', StringIO.new).eval(interpreter)
     end.to output('hello world').to_stdout
   end
 
   it 'preserves whitespace' do
     expect do
-      ForthOps::FString.new('hello   world"', StringIO.new('')).eval(interpreter)
+      ForthOps::FString.new('hello   world"', StringIO.new).eval(interpreter)
     end.to output('hello   world').to_stdout
 
     expect do
-      ForthOps::FString.new('hello   world   "', StringIO.new('')).eval(interpreter)
+      ForthOps::FString.new('hello   world   "', StringIO.new).eval(interpreter)
     end.to output('hello   world   ').to_stdout
 
     expect do
-      ForthOps::FString.new("hello  \n  world   \"  ", StringIO.new('')).eval(interpreter)
+      ForthOps::FString.new("hello  \n  world   \"  ", StringIO.new).eval(interpreter)
     end.to output("hello  \n  world   ").to_stdout
 
     # first whitespace after the ." is always consumed by the interpreter, otherwise

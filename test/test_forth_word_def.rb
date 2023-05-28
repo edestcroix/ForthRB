@@ -4,7 +4,7 @@ require 'rspec/autorun'
 require 'forthrb'
 
 describe ForthOps::WordDef do
-  let(:interpreter) { ForthRB::ForthInterpreter.new($stdin) }
+  let(:interpreter) { ForthRB::ForthInterpreter.new(StringIO.new) }
   # deliberately put weird newlines in the input IO to make sure it reads correctly.
   let(:word_def) { ForthOps::WordDef.new(%w[test], StringIO.new("\n 1 2\n+ ;")) }
 
@@ -16,7 +16,7 @@ describe ForthOps::WordDef do
   end
 
   it 'supports recursion' do
-    ForthOps::WordDef.new(%w[fac DUP 1 > IF DUP 1 - fac * ELSE DROP 1 THEN ;], $stdin).eval(interpreter)
+    ForthOps::WordDef.new(%w[fac DUP 1 > IF DUP 1 - fac * ELSE DROP 1 THEN ;], StringIO.new).eval(interpreter)
     interpreter.interpret_line(%w[5 fac])
     expect(interpreter.stack).to eq [120]
   end
@@ -29,7 +29,7 @@ describe ForthOps::WordDef do
 end
 
 describe ForthOps::WordDef do
-  let(:interpreter) { ForthRB::ForthInterpreter.new($stdin) }
+  let(:interpreter) { ForthRB::ForthInterpreter.new(StringIO.new) }
 
   it 'prevents defining a word with a number' do
     expect do
