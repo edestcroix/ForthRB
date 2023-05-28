@@ -370,7 +370,8 @@ module ForthOps
 
     def read_until(line)
       loop do
-        (return [] unless (line = read_source)) if line.empty?
+        line = read_source if line.empty?
+        return [] unless line
         break if (word = get_word(line)) && word.casecmp?(@end_word)
 
         line = add_to_block(word, line)
@@ -384,11 +385,11 @@ module ForthOps
     def add_to_block(word, line)
       if (obj = str_to_forth_op(word)&.new(line, @source))
         @block << obj
-        return obj.remainder
+        obj.remainder
+      else
+        @block << word if word
+        line
       end
-
-      @block << word if word
-      line
     end
 
     # Reads the next line from the source. If there is no next line,

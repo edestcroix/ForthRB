@@ -105,7 +105,6 @@ module ForthRB
 
     # Handles 'value' type words. I.e numbers, variables, or constants that need to be pushed to the stack.
     def eval_value(word)
-      # integer? method added by extending String in utils.rb
       if word.to_i.to_s == word
         @stack << word.to_i
       elsif @heap.defined? word
